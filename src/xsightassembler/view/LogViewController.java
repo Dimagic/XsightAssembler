@@ -22,6 +22,8 @@ import xsightassembler.utils.MsgBox;
 import xsightassembler.utils.Utils;
 
 import java.util.*;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 
 public class LogViewController {
@@ -124,11 +126,17 @@ public class LogViewController {
                 upBtn.setDisable(true);
                 downBtn.setDisable(true);
             } else {
-                searchResultList = listView.getItems().stream().filter(c ->
-                        c.getFullMsg().contains(newValue)).collect(Collectors.toList());
-                searchResultLbl.setText(String.format("Found %s items", searchResultList.size()));
-                upBtn.setDisable(searchResultList.isEmpty());
-                downBtn.setDisable(searchResultList.isEmpty());
+                try {
+                    Pattern pattern = Pattern.compile(newValue);
+                    clipboardLbl.setText(String.format("Pattern for search: %s", newValue));
+                    searchResultList = listView.getItems().stream().filter(c ->
+                            pattern.matcher(c.getFullMsg()).find()).collect(Collectors.toList());
+                    searchResultLbl.setText(String.format("Found %s items", searchResultList.size()));
+                    upBtn.setDisable(searchResultList.isEmpty());
+                    downBtn.setDisable(searchResultList.isEmpty());
+                } catch (PatternSyntaxException e){
+                    clipboardLbl.setText("Incorrect pattern, looking for string");
+                }
             }
         });
 
@@ -172,9 +180,7 @@ public class LogViewController {
             }
         });
 
-        EventHandler<MouseEvent> mouseEventHandle = (MouseEvent event) -> {
-            handleMouseClicked(event);
-        };
+        EventHandler<MouseEvent> mouseEventHandle = this::handleMouseClicked;
 
 
         logTree.addEventHandler(MouseEvent.MOUSE_CLICKED, mouseEventHandle);
