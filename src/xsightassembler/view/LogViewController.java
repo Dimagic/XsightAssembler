@@ -1,13 +1,17 @@
 package xsightassembler.view;
 
 import javafx.collections.transformation.FilteredList;
+import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.Clipboard;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.VBox;
+import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -102,7 +106,7 @@ public class LogViewController {
             clipboard.clear();
             selectedItemField.copy();
             if (clipboard.hasString()) {
-                clipboardLbl.setText(String.format("String for search: %s", clipboard.getString()));
+                clipboardLbl.setText(String.format("String for search: '%s'", clipboard.getString()));
                 searchResultList = listView.getItems().stream().filter(c ->
                         c.getFullMsg().contains(clipboard.getString())).collect(Collectors.toList());
                 searchResultLbl.setText(String.format("Found %s items", searchResultList.size()));
@@ -164,11 +168,20 @@ public class LogViewController {
             if (newValue != null) {
                 listView.scrollTo(newValue.getValue());
                 listView.getSelectionModel().select(newValue.getValue());
+                selectedItemField.clear();
             }
         });
 
+        EventHandler<MouseEvent> mouseEventHandle = (MouseEvent event) -> {
+            handleMouseClicked(event);
+        };
+
+
+        logTree.addEventHandler(MouseEvent.MOUSE_CLICKED, mouseEventHandle);
+
         downBtn.setOnMouseClicked(e -> {
             int i = searchResultList.indexOf(selectedLogItem);
+            searchResultLbl.setText(String.format("Selected %s of  %s items", i + 1, searchResultList.size()));
             try {
                 selectedLogItem = searchResultList.get(i + 1);
                 if (selectedLogItem != null) {
@@ -183,6 +196,7 @@ public class LogViewController {
         upBtn.setOnMouseClicked(e -> {
             try {
                 int i = searchResultList.indexOf(selectedLogItem);
+                searchResultLbl.setText(String.format("Selected %s of  %s items", i + 1, searchResultList.size()));
                 selectedLogItem = searchResultList.get(i - 1);
                 if (selectedLogItem != null) {
                     listView.scrollTo(selectedLogItem);
@@ -278,6 +292,19 @@ public class LogViewController {
         searchResultLbl.setText("");
         upBtn.setDisable(true);
         downBtn.setDisable(true);
+    }
+
+    private void handleMouseClicked(MouseEvent event) {
+        Node node = event.getPickResult().getIntersectedNode();
+        // Accept clicks only on node cells, and not on empty spaces of the TreeView
+        if (node instanceof Text || (node instanceof TreeCell && ((TreeCell) node).getText() != null)) {
+            LogItem treeItem = (LogItem) ((TreeItem) logTree.getSelectionModel().getSelectedItem()).getValue();
+            if (!treeItem.equals(listView.getSelectionModel().getSelectedItem())) {
+                listView.scrollTo(treeItem);
+                listView.getSelectionModel().select(treeItem);
+                selectedItemField.clear();
+            }
+        }
     }
 
     @FXML
