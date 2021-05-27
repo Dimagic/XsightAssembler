@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.DatePicker?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.text.Font?>
+
+<AnchorPane fx:id="mainPane" prefHeight="550.0" prefWidth="800.0" xmlns="http://javafx.com/javafx/8.0.271" xmlns:fx="http://javafx.com/fxml/1" fx:controller="xsightassembler.view.MainController">
+   <children>
+      <TableView fx:id="tIsduh" prefHeight="200.0" prefWidth="200.0" AnchorPane.bottomAnchor="50.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="50.0" />
+      <HBox prefHeight="50.0" prefWidth="200.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0">
+         <children>
+            <Label prefHeight="25.0" text="Module:">
+               <font>
+                  <Font name="System Bold" size="12.0" />
+               </font>
+               <HBox.margin>
+                  <Insets left="10.0" top="14.0" />
+               </HBox.margin>
+            </Label>
+            <ComboBox fx:id="moduleNameCombo" prefWidth="150.0">
+               <HBox.margin>
+                  <Insets left="10.0" top="14.0" />
+               </HBox.margin>
+            </ComboBox>
+            <Button mnemonicParsing="false" onAction="#showAssembler" prefHeight="25.0" prefWidth="150.0" text="Open module journal">
+               <HBox.margin>
+                  <Insets left="10.0" top="14.0" />
+               </HBox.margin>
+            </Button>
+            <Button fx:id="allInOneBtn" mnemonicParsing="false" prefHeight="25.0" prefWidth="150.0" text="Assembler">
+               <HBox.margin>
+                  <Insets left="10.0" top="14.0" />
+               </HBox.margin>
+            </Button>
+            <Button fx:id="palletBtn" mnemonicParsing="false" prefHeight="25.0" prefWidth="150.0" text="Pallets">
+               <HBox.margin>
+                  <Insets left="10.0" top="14.0" />
+               </HBox.margin>
+            </Button>
+         </children>
+      </HBox>
+      <HBox fx:id="iconsBar" layoutX="10.0" layoutY="-25.0" prefHeight="50.0" prefWidth="500.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+         <children>
+            <Label prefHeight="25.0" text="Show:">
+               <HBox.margin>
+                  <Insets right="10.0" top="15.0" />
+               </HBox.margin>
+               <font>
+                  <Font name="System Bold" size="12.0" />
+               </font>
+            </Label>
+            <ComboBox fx:id="journalCombo" prefWidth="100.0">
+               <HBox.margin>
+                  <Insets right="10.0" top="15.0" />
+               </HBox.margin>
+            </ComboBox>
+            <Label prefHeight="25.0" text="From:">
+               <font>
+                  <Font name="System Bold" size="12.0" />
+               </font>
+               <HBox.margin>
+                  <Insets right="10.0" top="15.0" />
+               </HBox.margin>
+            </Label>
+            <DatePicker fx:id="dateFrom" onAction="#fillTable" prefHeight="25.0" prefWidth="100.0">
+               <HBox.margin>
+                  <Insets right="10.0" top="15.0" />
+               </HBox.margin></DatePicker>
+            <Label prefHeight="25.0" text="To:">
+               <font>
+                  <Font name="System Bold" size="12.0" />
+               </font>
+               <HBox.margin>
+                  <Insets right="10.0" top="15.0" />
+               </HBox.margin>
+            </Label>
+            <DatePicker fx:id="dateTo" onAction="#fillTable" prefHeight="25.0" prefWidth="100.0">
+               <HBox.margin>
+                  <Insets right="10.0" top="15.0" />
+               </HBox.margin></DatePicker>
+            <ImageView fx:id="refreshImg" fitHeight="25.0" fitWidth="25.0" pickOnBounds="true" preserveRatio="true">
+               <HBox.margin>
+                  <Insets right="10.0" top="15.0" />
+               </HBox.margin></ImageView>
+            <Label prefHeight="25.0" text="Filter:">
+               <font>
+                  <Font name="System Bold" size="12.0" />
+               </font>
+               <HBox.margin>
+                  <Insets right="10.0" top="15.0" />
+               </HBox.margin>
+            </Label>
+            <TextField fx:id="filterField" prefHeight="25.0" prefWidth="100.0">
+               <HBox.margin>
+                  <Insets right="10.0" top="15.0" />
+               </HBox.margin></TextField>
+         </children>
+         <padding>
+            <Insets left="10.0" />
+         </padding>
+      </HBox>
+   </children>
+</AnchorPane>
