@@ -156,7 +156,7 @@ public class BiLogAnalyzer extends Task<FilteredList<LogItem>> {
             return new FilteredList<>(logData);
         } catch (IOException | ParseException e) {
             LOGGER.error("Exception", e);
-            MsgBox.msgException(e);
+            MsgBox.msgError(e.getLocalizedMessage());
         }
 //        finally {
 //            try {
