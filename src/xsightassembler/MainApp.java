@@ -303,6 +303,9 @@ public class MainApp extends Application {
     }
 
     public void showLogView(FilteredList<LogItem> itemList) {
+        if (itemList == null) {
+            return;
+        }
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getClassLoader().getResource("LogView.fxml"));
             SplitPane page = loader.load();
