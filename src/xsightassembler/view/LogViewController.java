@@ -223,8 +223,10 @@ public class LogViewController {
                 } catch (PatternSyntaxException e) {
                     searchResultList = searchByString(selectedItemField.getText());
                 }
-                searchResultLbl.setText(String.format("Found %s items", searchResultList.size()));
             }
+            upBtn.setDisable(searchResultList.isEmpty());
+            downBtn.setDisable(searchResultList.isEmpty());
+            searchResultLbl.setText(String.format("Found %s items", searchResultList.size()));
         });
     }
 
