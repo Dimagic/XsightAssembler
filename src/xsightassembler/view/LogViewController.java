@@ -302,18 +302,16 @@ public class LogViewController {
             setDuration();
         });
 
-        durationSlider.setOnMouseReleased(e -> fillLogView());
+        durationSlider.setOnMouseReleased(e -> {
+            fillLogView();
+            searchResultList = runSearch();
+            searchResultLbl.setText(String.format("Found %s items", searchResultList.size()));
+        });
     }
 
     private void setDuration() {
         duration = durationSlider.highValueProperty().longValue() - durationSlider.lowValueProperty().longValue();
         durationLbl.setText(Utils.formatHMSM(duration));
-
-        searchResultList.clear();
-        selectedItemField.clear();
-        searchResultLbl.setText("");
-        upBtn.setDisable(true);
-        downBtn.setDisable(true);
     }
 
     private void handleMouseClicked(MouseEvent event) {
@@ -326,6 +324,20 @@ public class LogViewController {
                 listView.getSelectionModel().select(treeItem);
                 selectedItemField.clear();
             }
+        }
+    }
+
+    private List<LogItem> runSearch() {
+        String val;
+        if (clipboard.hasString() && selectedItemField.getText().contains(clipboard.getString())) {
+            val = clipboard.getString();
+        } else {
+            val = selectedItemField.getText();
+        }
+        try {
+            return searchByPattern(val);
+        } catch (PatternSyntaxException e) {
+            return searchByString(val);
         }
     }
 
