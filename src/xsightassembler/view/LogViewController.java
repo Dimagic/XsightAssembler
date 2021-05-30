@@ -108,9 +108,7 @@ public class LogViewController {
             clipboard.clear();
             selectedItemField.copy();
             if (clipboard.hasString()) {
-                clipboardLbl.setText(String.format("String for search: '%s'", clipboard.getString()));
-                searchResultList = listView.getItems().stream().filter(c ->
-                        c.getFullMsg().contains(clipboard.getString())).collect(Collectors.toList());
+                searchResultList = searchByString(clipboard.getString());
                 searchResultLbl.setText(String.format("Found %s items", searchResultList.size()));
                 upBtn.setDisable(searchResultList.isEmpty());
                 downBtn.setDisable(searchResultList.isEmpty());
@@ -127,10 +125,10 @@ public class LogViewController {
                 downBtn.setDisable(true);
             } else {
                 try {
-                    Pattern pattern = Pattern.compile(newValue);
-                    clipboardLbl.setText(String.format("Pattern for search: %s", newValue));
-                    searchResultList = listView.getItems().stream().filter(c ->
-                            pattern.matcher(c.getFullMsg()).find()).collect(Collectors.toList());
+                    searchResultList = searchByPattern(newValue);
+                    if (searchResultList.isEmpty()) {
+                        searchResultList = searchByString(newValue);
+                    }
                     searchResultLbl.setText(String.format("Found %s items", searchResultList.size()));
                     upBtn.setDisable(searchResultList.isEmpty());
                     downBtn.setDisable(searchResultList.isEmpty());
@@ -311,6 +309,20 @@ public class LogViewController {
                 selectedItemField.clear();
             }
         }
+    }
+
+    private List<LogItem> searchByString(String val) {
+        clipboardLbl.setText(String.format("String for search: '%s'", val));
+        return listView.getItems().stream().filter(c ->
+                c.getFullMsg().contains(val)).collect(Collectors.toList());
+
+    }
+
+    private List<LogItem> searchByPattern(String val) throws PatternSyntaxException {
+        Pattern pattern = Pattern.compile(val);
+        clipboardLbl.setText(String.format("Pattern for search: %s", val));
+        return listView.getItems().stream().filter(c ->
+                pattern.matcher(c.getFullMsg()).find()).collect(Collectors.toList());
     }
 
     @FXML
