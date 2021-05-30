@@ -1,5 +1,7 @@
 package xsightassembler.view;
 
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.transformation.FilteredList;
 import javafx.event.EventHandler;
 import javafx.fxml.FXML;
@@ -64,6 +66,8 @@ public class LogViewController {
     private Button downBtn;
     @FXML
     private Button filterBtn;
+    @FXML
+    private CheckBox isIgnoreCase;
 
 
     @FXML
@@ -132,7 +136,7 @@ public class LogViewController {
                     searchResultLbl.setText(String.format("Found %s items", searchResultList.size()));
                     upBtn.setDisable(searchResultList.isEmpty());
                     downBtn.setDisable(searchResultList.isEmpty());
-                } catch (PatternSyntaxException e){
+                } catch (PatternSyntaxException e) {
                     clipboardLbl.setText("Incorrect pattern, looking for string");
                 }
             }
@@ -208,6 +212,18 @@ public class LogViewController {
                 }
             } catch (IndexOutOfBoundsException ex) {
                 MsgBox.msgInfo("Nothing found");
+            }
+        });
+
+        isIgnoreCase.selectedProperty().addListener((observable, oldValue, newValue) -> {
+            searchResultList.clear();
+            if (!selectedItemField.getText().isEmpty()) {
+                try {
+                    searchResultList = searchByPattern(selectedItemField.getText());
+                } catch (PatternSyntaxException e) {
+                    searchResultList = searchByString(selectedItemField.getText());
+                }
+                searchResultLbl.setText(String.format("Found %s items", searchResultList.size()));
             }
         });
     }
@@ -313,20 +329,31 @@ public class LogViewController {
 
     private List<LogItem> searchByString(String val) {
         clipboardLbl.setText(String.format("String for search: '%s'", val));
+        if (isIgnoreCase.isSelected()) {
+            return listView.getItems().stream().filter(c ->
+                    c.getFullMsg().toLowerCase().
+                            contains(val.toLowerCase())).collect(Collectors.toList());
+        }
         return listView.getItems().stream().filter(c ->
                 c.getFullMsg().contains(val)).collect(Collectors.toList());
 
     }
 
     private List<LogItem> searchByPattern(String val) throws PatternSyntaxException {
-        Pattern pattern = Pattern.compile(val);
+        Pattern pattern;
         clipboardLbl.setText(String.format("Pattern for search: %s", val));
+        if (isIgnoreCase.isSelected()) {
+            pattern = Pattern.compile(val.toLowerCase());
+            return listView.getItems().stream().filter(c ->
+                    pattern.matcher(c.getFullMsg().toLowerCase()).find()).collect(Collectors.toList());
+        }
+        pattern = Pattern.compile(val);
         return listView.getItems().stream().filter(c ->
                 pattern.matcher(c.getFullMsg()).find()).collect(Collectors.toList());
     }
 
     @FXML
-    private void clearSearchField(){
+    private void clearSearchField() {
         selectedItemField.clear();
     }
 
