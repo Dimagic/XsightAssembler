@@ -14,6 +14,7 @@ public class LogItem {
     private int lineNum;
     private boolean isIbit;
     private boolean isIgnore;
+    private boolean isIncorrectDateRange;
 
     public LogItem(String errType) {
         this.errType = errType;
@@ -73,6 +74,14 @@ public class LogItem {
 
     public void setIgnore(boolean ignore) {
         isIgnore = ignore;
+    }
+
+    public boolean isIncorrectDateRange() {
+        return isIncorrectDateRange;
+    }
+
+    public void setIncorrectDateRange(boolean incorrectDateRange) {
+        isIncorrectDateRange = incorrectDateRange;
     }
 
     @Override

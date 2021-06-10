@@ -193,10 +193,12 @@ public class Utils {
             duration /= DAYS_IN_A_YEAR;
             int years = (int) (duration);
 
-            if (days == 0) {
-                res = String.format("%02d:%02d:%02d", hours, minutes, seconds);
-            } else {
+            if (years > 0) {
+                res = String.format("%d years %d days %02d:%02d:%02d", years, days, hours, minutes, seconds);
+            } else if (days > 0) {
                 res = String.format("%d days %02d:%02d:%02d", days, hours, minutes, seconds);
+            } else {
+                res = String.format("%02d:%02d:%02d", hours, minutes, seconds);
             }
         }
         return res;

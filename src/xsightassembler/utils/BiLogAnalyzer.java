@@ -55,7 +55,8 @@ public class BiLogAnalyzer extends Task<FilteredList<LogItem>> {
                 String filename2 = ssh.getFile(settings.getSftpFolder(), "messages.1");
                 ssh.close();
                 if (filename != null) {
-//                    return parseLog(filename, filename2);
+                    File[] files = {new File(filename), new File(filename2)};
+                    return parseLog(files);
                 }
             }
         } catch (Exception e) {
@@ -65,7 +66,6 @@ public class BiLogAnalyzer extends Task<FilteredList<LogItem>> {
         return null;
     }
 
-//    String path, String path2
     private FilteredList<LogItem> parseLog(File[] filesList) {
         try {
             assert settings != null;
@@ -79,14 +79,9 @@ public class BiLogAnalyzer extends Task<FilteredList<LogItem>> {
             for (File f: filesList) {
                 allLines.addAll(Files.readAllLines(Paths.get(f.getPath())));
             }
-//            if (path2 != null) {
-//                allLines = Files.readAllLines(Paths.get(path2));
-//                allLines.addAll(Files.readAllLines(Paths.get(path)));
-//            } else {
-//                allLines = Files.readAllLines(Paths.get(path));
-//            }
+
             int lineNum = 1;
-            Date dateLogItem = null;
+            Date dateLogItem;
             String sourceLogItem = "";
             Matcher m, mSour;
             for (String line : allLines) {

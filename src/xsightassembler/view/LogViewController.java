@@ -1,17 +1,15 @@
 package xsightassembler.view;
 
-import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
 import javafx.collections.transformation.FilteredList;
 import javafx.event.EventHandler;
 import javafx.fxml.FXML;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
@@ -20,7 +18,6 @@ import org.apache.logging.log4j.Logger;
 import org.controlsfx.control.RangeSlider;
 import xsightassembler.MainApp;
 import xsightassembler.models.LogItem;
-import xsightassembler.utils.MsgBox;
 import xsightassembler.utils.Utils;
 
 import java.util.*;
@@ -37,12 +34,13 @@ public class LogViewController {
     private List<LogItem> searchResultList = new ArrayList<>();
     private LogItem selectedLogItem;
     private RangeSlider durationSlider;
-    private Label durationLbl = new Label();
+    private final Label durationLbl = new Label();
     private Date startDate;
     private Date stopDate;
-    private long duration;
-    private final Image failImg = new Image(getClass().getClassLoader().getResourceAsStream("fail_32x32.png"));
-
+    private final RadioButton allBtn = new RadioButton("all");
+    private final RadioButton correctBtn = new RadioButton("correct range");
+    private final RadioButton incorrectBtn = new RadioButton("incorrect range");
+    private HBox radioBox;
 
     @FXML
     private ListView<LogItem> listView;
@@ -80,6 +78,8 @@ public class LogViewController {
         downBtn.setDisable(true);
         filterBtn.setDisable(true);
 
+        allBtn.setSelected(true);
+
         logTree.setShowRoot(false);
         listView.setCellFactory(param -> new ListCell<LogItem>() {
             @Override
@@ -90,10 +90,15 @@ public class LogViewController {
                     setStyle("-fx-control-inner-background: derive(palegreen, 50%)");
                 } else {
                     setText(item.getFullMsg());
-                    if (item != null && item.isIbit()) {
+                    if (item.isIbit()) {
                         setStyle("-fx-control-inner-background: derive(palegreen, 50%)");
+                        setTooltip(new Tooltip("BIT test running"));
+                    } else if (item.isIncorrectDateRange()) {
+                        setStyle("-fx-control-inner-background: derive(yellow, 50%)");
+                        setTooltip(new Tooltip("Incorrect date range"));
                     } else {
                         setStyle("-fx-control-inner-background: derive(-fx-base, 80%)");
+                        setTooltip(null);
                     }
                 }
             }
@@ -164,11 +169,6 @@ public class LogViewController {
                         if (!item.isIgnore()) {
                             setStyle("-fx-background-color: derive(red, 50%)");
                         }
-//                        if (item.isIgnore()) {
-//                            setStyle("-fx-background-color: derive(#28ee28, 50%)");
-//                        } else {
-//
-//                        }
                     }
                 }
             }
@@ -184,35 +184,14 @@ public class LogViewController {
 
         EventHandler<MouseEvent> mouseEventHandle = this::handleMouseClicked;
 
-
         logTree.addEventHandler(MouseEvent.MOUSE_CLICKED, mouseEventHandle);
 
         downBtn.setOnMouseClicked(e -> {
-            int i = searchResultList.indexOf(selectedLogItem);
-            searchResultLbl.setText(String.format("Selected %s of  %s items", i + 1, searchResultList.size()));
-            try {
-                selectedLogItem = searchResultList.get(i + 1);
-                if (selectedLogItem != null) {
-                    listView.scrollTo(selectedLogItem);
-                    listView.getSelectionModel().select(selectedLogItem);
-                }
-            } catch (IndexOutOfBoundsException ex) {
-                MsgBox.msgInfo("Nothing found");
-            }
+            filteredItemsNavigate(1);
         });
 
         upBtn.setOnMouseClicked(e -> {
-            try {
-                int i = searchResultList.indexOf(selectedLogItem);
-                searchResultLbl.setText(String.format("Selected %s of  %s items", i + 1, searchResultList.size()));
-                selectedLogItem = searchResultList.get(i - 1);
-                if (selectedLogItem != null) {
-                    listView.scrollTo(selectedLogItem);
-                    listView.getSelectionModel().select(selectedLogItem);
-                }
-            } catch (IndexOutOfBoundsException ex) {
-                MsgBox.msgInfo("Nothing found");
-            }
+            filteredItemsNavigate(-1);
         });
 
         isIgnoreCase.selectedProperty().addListener((observable, oldValue, newValue) -> {
@@ -228,69 +207,67 @@ public class LogViewController {
             downBtn.setDisable(searchResultList.isEmpty());
             searchResultLbl.setText(String.format("Found %s items", searchResultList.size()));
         });
+
     }
 
     public void setItemList(FilteredList<LogItem> itemList) {
         this.itemList = Utils.setIgnoreFlagInLogs(itemList);
-        this.itemList.setPredicate(s -> true);
-        if (itemList.size() > 0) {
-            startDate = itemList.get(0).getDate();
-            stopDate = itemList.get(itemList.size() - 1).getDate();
-            startLbl.setText(Utils.getFormattedDate(startDate));
-            stopLbl.setText(Utils.getFormattedDate(stopDate));
-        }
-
-        setSlider();
-        fillLogView();
-    }
-
-    private void fillLogView() {
-        listView.getItems().clear();
-        logTree.setRoot(null);
-        itemList.setPredicate(s -> s.getDate().getTime() >= durationSlider.lowValueProperty().longValue() &&
-                s.getDate().getTime() <= durationSlider.highValueProperty().longValue());
-
-//        itemList.setPredicate(s -> s.getDate().getTime() < durationSlider.lowValueProperty().longValue() ||
-//                s.getDate().getTime() > durationSlider.highValueProperty().longValue());
-        for (LogItem i : itemList) {
-            listView.getItems().add(i);
-        }
-        listView.refresh();
+        checkDateRangeCorrect();
+        initSliderBox();
+        setItemListPredicate(true);
+        listView.setItems(itemList);
         fillLogTree();
+        ifIncorrectRangePreset();
     }
 
     private void fillLogTree() {
-        itemList.setPredicate(s -> s.getErrType() != null &&
-                s.getDate().getTime() >= durationSlider.lowValueProperty().longValue() &&
-                s.getDate().getTime() <= durationSlider.highValueProperty().longValue());
         Set<String> errorsSet = new HashSet<>();
-        itemList.forEach(i -> errorsSet.add(i.getErrType()));
+        FilteredList<LogItem> tmp = new FilteredList<>(listView.getItems());
+        listView.getItems().forEach(i -> {
+            if (i.getErrType() != null) {
+                errorsSet.add(i.getErrType());
+            }
+        });
 
         TreeItem<LogItem> rootItem = new TreeItem<>(new LogItem("Root"));
         TreeItem<LogItem> errorCategory;
 
         for (String val : errorsSet) {
-            itemList.setPredicate(s -> s.getErrType() != null &&
+            tmp.setPredicate(s -> s.getErrType() != null &&
                     s.getErrType().equalsIgnoreCase(val) &&
                     s.getDate().getTime() >= durationSlider.lowValueProperty().longValue() &&
                     s.getDate().getTime() <= durationSlider.highValueProperty().longValue());
             errorCategory = new TreeItem<>(new LogItem(String.format("%s [%s of %s ignored]", val,
-                    itemList.stream().filter(LogItem::isIgnore).count(), itemList.size())));
-            for (LogItem l : itemList) {
-                TreeItem<LogItem> t = new TreeItem<>(l, new ImageView(failImg));
+                    tmp.stream().filter(LogItem::isIgnore).count(), tmp.size())));
+            for (LogItem l : tmp) {
+                TreeItem<LogItem> t = new TreeItem<>(l);
                 errorCategory.getChildren().add(t);
             }
             rootItem.getChildren().add(errorCategory);
         }
         rootItem.getChildren().sort(Comparator.comparing(t -> t.getValue().getErrType()));
         logTree.setRoot(rootItem);
+        searchResultLbl.setText(String.format("Found %s items", itemList.size()));
     }
 
-    private void setSlider() {
-        durationSlider = new RangeSlider(startDate.getTime(), stopDate.getTime(), startDate.getTime(), stopDate.getTime());
-        setDuration();
-        sliderBox.getChildren().addAll(durationSlider, durationLbl);
+    private void initSliderBox() {
+        durationSlider = new RangeSlider(0, 0, 0, 0);
+
+        ToggleGroup group = new ToggleGroup();
+        Label rangeLbl = new Label("Show:");
+        allBtn.setToggleGroup(group);
+        correctBtn.setToggleGroup(group);
+        incorrectBtn.setToggleGroup(group);
+        radioBox = new HBox();
+        radioBox.setPadding(new Insets(10));
+        radioBox.setSpacing(5);
+        radioBox.getChildren().addAll(rangeLbl, allBtn, correctBtn, incorrectBtn);
         sliderBox.setAlignment(Pos.BASELINE_CENTER);
+        sliderBox.getChildren().addAll(durationSlider, durationLbl, radioBox);
+
+        group.selectedToggleProperty().addListener((ov, old_toggle, new_toggle) -> {
+            setItemListPredicate(true);
+        });
 
         durationSlider.lowValueProperty().addListener((observable, oldValue, newValue) -> {
             startLbl.setText(Utils.getFormattedDate(new Date(newValue.longValue())));
@@ -303,28 +280,103 @@ public class LogViewController {
         });
 
         durationSlider.setOnMouseReleased(e -> {
-            fillLogView();
+            setItemListPredicate();
             searchResultList = runSearch();
             searchResultLbl.setText(String.format("Found %s items", searchResultList.size()));
         });
     }
 
     private void setDuration() {
-        duration = durationSlider.highValueProperty().longValue() - durationSlider.lowValueProperty().longValue();
+        long duration = durationSlider.highValueProperty().longValue() - durationSlider.lowValueProperty().longValue();
         durationLbl.setText(Utils.formatHMSM(duration));
+//        startLbl.setText(Utils.getFormattedDate(startDate));
+//        stopLbl.setText(Utils.getFormattedDate(stopDate));
     }
 
-    private void handleMouseClicked(MouseEvent event) {
-        Node node = event.getPickResult().getIntersectedNode();
-        // Accept clicks only on node cells, and not on empty spaces of the TreeView
-        if (node instanceof Text || (node instanceof TreeCell && ((TreeCell) node).getText() != null)) {
-            LogItem treeItem = (LogItem) ((TreeItem) logTree.getSelectionModel().getSelectedItem()).getValue();
-            if (!treeItem.equals(listView.getSelectionModel().getSelectedItem())) {
-                listView.scrollTo(treeItem);
-                listView.getSelectionModel().select(treeItem);
-                selectedItemField.clear();
+    private void ifIncorrectRangePreset() {
+        boolean isIncorrectRangePresent = listView.getItems().stream().anyMatch(LogItem::isIncorrectDateRange);
+        boolean isAllItemsInIncorrectRange = listView.getItems().stream().allMatch(LogItem::isIncorrectDateRange);
+//        radioBox.setVisible(isIncorrectRangePresent);
+        if (isIncorrectRangePresent && !isAllItemsInIncorrectRange) {
+            durationLbl.setText("Found incorrect date range");
+        }
+    }
+
+    private void checkDateRangeCorrect() {
+        long oldDate = 0;
+        for (LogItem item : itemList) {
+            if (oldDate == 0) {
+                oldDate = item.getDate().getTime();
+                continue;
+            }
+            if (oldDate > item.getDate().getTime()) {
+//                ignore logs where time difference < 2 seconds
+                if ((oldDate - item.getDate().getTime()) > 2000) {
+                    item.setIncorrectDateRange(true);
+                }
+            } else {
+                oldDate = item.getDate().getTime();
             }
         }
+    }
+
+    private void setItemListPredicate() {
+        setItemListPredicate(false);
+    }
+
+    private void setItemListPredicate(boolean isResetLimits) {
+        if (isResetLimits) {
+            itemList.setPredicate(s -> {
+                if (correctBtn.isSelected()) {
+                    return !s.isIncorrectDateRange();
+                }
+                if (incorrectBtn.isSelected()) {
+                    return s.isIncorrectDateRange();
+                }
+                return true;
+            });
+            setMinMaxDate();
+            durationSlider.setMin(startDate.getTime());
+            durationSlider.setMax(stopDate.getTime());
+            durationSlider.setLowValue(startDate.getTime());
+            durationSlider.setHighValue(stopDate.getTime());
+        } else {
+            itemList.setPredicate(s -> {
+                if (correctBtn.isSelected()) {
+                    return s.getDate().getTime() >= durationSlider.lowValueProperty().longValue() &&
+                            s.getDate().getTime() <= durationSlider.highValueProperty().longValue() &&
+                            !s.isIncorrectDateRange();
+                }
+                if (incorrectBtn.isSelected()) {
+                    return s.getDate().getTime() >= durationSlider.lowValueProperty().longValue() &&
+                            s.getDate().getTime() <= durationSlider.highValueProperty().longValue() &&
+                            s.isIncorrectDateRange();
+                }
+                return s.getDate().getTime() >= durationSlider.lowValueProperty().longValue() &&
+                        s.getDate().getTime() <= durationSlider.highValueProperty().longValue();
+            });
+        }
+        fillLogTree();
+        setDuration();
+        ifIncorrectRangePreset();
+    }
+
+    private void setMinMaxDate() {
+        if (itemList.size() == 1) {
+            startDate = stopDate = itemList.get(0).getDate();
+        } else if (!itemList.isEmpty()) {
+            startDate = itemList.parallelStream().min(
+                    Comparator.comparingLong(s -> s.getDate().getTime())).get().getDate();
+            stopDate = itemList.parallelStream().max(
+                    Comparator.comparingLong(s -> s.getDate().getTime())).get().getDate();
+        } else {
+            startDate = stopDate = new Date();
+        }
+    }
+
+    @FXML
+    private void clearSearchField() {
+        selectedItemField.clear();
     }
 
     private List<LogItem> runSearch() {
@@ -342,33 +394,60 @@ public class LogViewController {
     }
 
     private List<LogItem> searchByString(String val) {
+        List<LogItem> tmp;
         clipboardLbl.setText(String.format("String for search: '%s'", val));
         if (isIgnoreCase.isSelected()) {
-            return listView.getItems().stream().filter(c ->
+            tmp = listView.getItems().stream().filter(c ->
                     c.getFullMsg().toLowerCase().
                             contains(val.toLowerCase())).collect(Collectors.toList());
+        } else {
+            tmp = listView.getItems().stream().filter(c ->
+                    c.getFullMsg().contains(val)).collect(Collectors.toList());
         }
-        return listView.getItems().stream().filter(c ->
-                c.getFullMsg().contains(val)).collect(Collectors.toList());
-
+        return tmp;
     }
 
     private List<LogItem> searchByPattern(String val) throws PatternSyntaxException {
         Pattern pattern;
+        List<LogItem> tmp;
         clipboardLbl.setText(String.format("Pattern for search: %s", val));
         if (isIgnoreCase.isSelected()) {
             pattern = Pattern.compile(val.toLowerCase());
-            return listView.getItems().stream().filter(c ->
+            tmp = listView.getItems().stream().filter(c ->
                     pattern.matcher(c.getFullMsg().toLowerCase()).find()).collect(Collectors.toList());
+        } else {
+            pattern = Pattern.compile(val);
+            tmp = listView.getItems().stream().filter(c ->
+                    pattern.matcher(c.getFullMsg()).find()).collect(Collectors.toList());
         }
-        pattern = Pattern.compile(val);
-        return listView.getItems().stream().filter(c ->
-                pattern.matcher(c.getFullMsg()).find()).collect(Collectors.toList());
+        return tmp;
     }
 
-    @FXML
-    private void clearSearchField() {
-        selectedItemField.clear();
+    private void handleMouseClicked(MouseEvent event) {
+        Node node = event.getPickResult().getIntersectedNode();
+        if (node instanceof Text || (node instanceof TreeCell && ((TreeCell) node).getText() != null)) {
+            LogItem treeItem = (LogItem) ((TreeItem) logTree.getSelectionModel().getSelectedItem()).getValue();
+            if (!treeItem.equals(listView.getSelectionModel().getSelectedItem())) {
+                listView.scrollTo(treeItem);
+                listView.getSelectionModel().select(treeItem);
+                selectedItemField.clear();
+            }
+        }
+    }
+
+    // direct may be 1 or -1
+    private void filteredItemsNavigate (int direct){
+        int i = 0;
+        try {
+            i = searchResultList.indexOf(selectedLogItem);
+            selectedLogItem = searchResultList.get(i + direct);
+            if (selectedLogItem != null) {
+                listView.scrollTo(selectedLogItem);
+                listView.getSelectionModel().select(selectedLogItem);
+                i += direct;
+            }
+        } catch (IndexOutOfBoundsException ignored) {}
+        searchResultLbl.setText(String.format("Selected item %s of  %s", i + 1, searchResultList.size()));
     }
 
     public void setStage(Stage stage) {
