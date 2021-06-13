@@ -3,6 +3,7 @@ target/
 src/resources/
 src/test/
 logs/
+tmp/
 
 analyzer.ini
 strings.ini
