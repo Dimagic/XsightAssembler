@@ -4,6 +4,8 @@ import com.jcraft.jsch.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.io.File;
+import java.io.IOException;
 import java.io.PrintStream;
 import java.util.List;
 import java.util.Properties;
@@ -16,6 +18,7 @@ abstract class AsshClient {
     private final String username;
     private final String password;
     private final String hostname;
+    private final String tmpDir = "./tmp/";
 
     public AsshClient(String hostname, String username, String password) {
         this.hostname = hostname;
@@ -103,6 +106,10 @@ abstract class AsshClient {
 
     public String getFile(String remoteDir, String file) {
         try {
+            File tmp = new File(tmpDir);
+            if (!tmp.exists() || !tmp.isDirectory()) {
+                tmp.mkdir();
+            }
             session = getSession();
             Channel channel = getChannel();
             channel = session.openChannel("sftp");
@@ -113,8 +120,8 @@ abstract class AsshClient {
             for (Object o : filelist) {
                 ChannelSftp.LsEntry entry = (ChannelSftp.LsEntry) o;
                 String filename = entry.getFilename();
-                if (filename.equals(file)){
-                    String dest = "./tmp/" + Utils.stringToHash(Integer.toString(entry.hashCode()));
+                if (filename.equals(file)) {
+                    String dest = tmpDir + Utils.stringToHash(Integer.toString(entry.hashCode()));
                     channelSftp.get(filename, dest);
                     return dest;
                 }
