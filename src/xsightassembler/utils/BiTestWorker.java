@@ -7,6 +7,7 @@ import javafx.collections.transformation.FilteredList;
 import javafx.concurrent.Task;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.hibernate.annotations.Synchronize;
 import xsightassembler.MainApp;
 import xsightassembler.models.BiTest;
 import xsightassembler.models.Isduh;
@@ -42,6 +43,14 @@ public class BiTestWorker extends Task<Void> {
         this.labNum = labNum;
         this.controller = controller;
         this.settings = Utils.getSettings();
+        this.biTest = null;
+    }
+
+    public BiTestWorker(Integer labNum, BiJournalController controller, BiTest biTest) {
+        this.labNum = labNum;
+        this.controller = controller;
+        this.settings = Utils.getSettings();
+        this.biTest = biTest;
     }
 
     @Override
@@ -126,6 +135,9 @@ public class BiTestWorker extends Task<Void> {
         exService = Executors.newSingleThreadExecutor();
         logAnalyzer = new BiLogAnalyzer(biTest);
         logAnalyzer.setOnSucceeded(event -> {
+            if (logAnalyzer.getValue() == null) {
+                return;
+            }
             logItems = Utils.setIgnoreFlagInLogs(logAnalyzer.getValue());
             if (logItems != null) {
                 logItems.setPredicate(s -> s.getErrType() != null);
@@ -137,7 +149,7 @@ public class BiTestWorker extends Task<Void> {
                 Pattern pCounter = Pattern.compile("(?<=Counter:)(.*)(?=$)");
                 Matcher m;
                 Set<Integer> counterSet = new HashSet<>();
-                for (LogItem l: pduResetList){
+                for (LogItem l : pduResetList) {
                     m = pCounter.matcher(l.getFullMsg());
                     if (m.find()) {
                         counterSet.add(Integer.parseInt(m.group(1).trim()));
@@ -185,7 +197,6 @@ public class BiTestWorker extends Task<Void> {
             } else {
                 this.updateMessage(msg);
             }
-
         });
     }
 
@@ -217,6 +228,7 @@ public class BiTestWorker extends Task<Void> {
         return biTest;
     }
 
+
     public void setBiTest(BiTest biTest) {
         this.biTest = biTest;
         if (biTest != null && queue.isEmpty()) {
@@ -230,7 +242,7 @@ public class BiTestWorker extends Task<Void> {
     }
 
     public boolean isTestFail() {
-        return logItems.stream().anyMatch(t -> !t.isIgnore());
+        return logItems.parallelStream().anyMatch(t -> !t.isIgnore());
     }
 
     public Isduh getIsduh() {
@@ -262,10 +274,12 @@ public class BiTestWorker extends Task<Void> {
         if (biTest == null) {
             return new SimpleStringProperty("");
         }
-        if (!settings.getNamePostfix().trim().isEmpty()) {
-            return new SimpleStringProperty(biTest.getNetNameProperty().getValue()
-                    + settings.getNamePostfix().trim());
-        }
+        try {
+            if (!settings.getNamePostfix().trim().isEmpty()) {
+                return new SimpleStringProperty(biTest.getNetNameProperty().getValue()
+                        + settings.getNamePostfix().trim());
+            }
+        } catch (NullPointerException ignored){}
         return biTest.getNetNameProperty();
     }
 
@@ -311,6 +325,8 @@ public class BiTestWorker extends Task<Void> {
         }
         return Utils.stringToProperty(biTest.getUserLogin());
     }
+
+
 
     public void setMainApp(MainApp mainApp) {
         this.mainApp = mainApp;
