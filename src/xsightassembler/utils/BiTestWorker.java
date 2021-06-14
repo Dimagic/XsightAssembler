@@ -7,7 +7,6 @@ import javafx.collections.transformation.FilteredList;
 import javafx.concurrent.Task;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.hibernate.annotations.Synchronize;
 import xsightassembler.MainApp;
 import xsightassembler.models.BiTest;
 import xsightassembler.models.Isduh;
@@ -43,14 +42,6 @@ public class BiTestWorker extends Task<Void> {
         this.labNum = labNum;
         this.controller = controller;
         this.settings = Utils.getSettings();
-        this.biTest = null;
-    }
-
-    public BiTestWorker(Integer labNum, BiJournalController controller, BiTest biTest) {
-        this.labNum = labNum;
-        this.controller = controller;
-        this.settings = Utils.getSettings();
-        this.biTest = biTest;
     }
 
     @Override
@@ -135,21 +126,18 @@ public class BiTestWorker extends Task<Void> {
         exService = Executors.newSingleThreadExecutor();
         logAnalyzer = new BiLogAnalyzer(biTest);
         logAnalyzer.setOnSucceeded(event -> {
-            if (logAnalyzer.getValue() == null) {
-                return;
-            }
-            logItems = Utils.setIgnoreFlagInLogs(logAnalyzer.getValue());
+            logItems = logAnalyzer.getValue();
             if (logItems != null) {
                 logItems.setPredicate(s -> s.getErrType() != null);
                 int errors = logItems.size();
-                long ignored = logItems.stream().filter(LogItem::isIgnore).count();
+                int ignored = 0;
 
                 List<LogItem> pduResetList = logItems.stream().filter(s ->
                         s.getFullMsg().contains("PDU Reset Counter")).collect(Collectors.toList());
                 Pattern pCounter = Pattern.compile("(?<=Counter:)(.*)(?=$)");
                 Matcher m;
                 Set<Integer> counterSet = new HashSet<>();
-                for (LogItem l : pduResetList) {
+                for (LogItem l: pduResetList){
                     m = pCounter.matcher(l.getFullMsg());
                     if (m.find()) {
                         counterSet.add(Integer.parseInt(m.group(1).trim()));
@@ -157,16 +145,16 @@ public class BiTestWorker extends Task<Void> {
                 }
                 pduResetList.forEach(l -> l.setIgnore(counterSet.size() == 1));
 
-//                for (LogItem item : logItems) {
-//                    boolean ifIgnore = analyzerMap.get("ignore").stream().anyMatch(s ->
-//                            Pattern.compile(String.format("(.*?)%s(.*)", s)).matcher(item.getFullMsg()).matches());
-//                    boolean ifIbitIgnore = analyzerMap.get("ignore_if_ibit").stream().anyMatch(s ->
-//                            Pattern.compile(String.format("(.*?)%s(.*)", s)).matcher(item.getFullMsg()).matches()) && item.isIbit();
-//                    if (ifIgnore || ifIbitIgnore || item.isIgnore()) {
-//                        item.setIgnore(true);
-//                        ignored++;
-//                    }
-//                }
+                for (LogItem item : logItems) {
+                    boolean ifIgnore = analyzerMap.get("ignore").stream().anyMatch(s ->
+                            Pattern.compile(String.format("(.*?)%s(.*)", s)).matcher(item.getFullMsg()).matches());
+                    boolean ifIbitIgnore = analyzerMap.get("ignore_if_ibit").stream().anyMatch(s ->
+                            Pattern.compile(String.format("(.*?)%s(.*)", s)).matcher(item.getFullMsg()).matches()) && item.isIbit();
+                    if (ifIgnore || ifIbitIgnore || item.isIgnore()) {
+                        item.setIgnore(true);
+                        ignored++;
+                    }
+                }
 
                 if (errors == 0) {
                     updateLogStatus(String.format("Errors not found. Last check: %s",
@@ -242,7 +230,7 @@ public class BiTestWorker extends Task<Void> {
     }
 
     public boolean isTestFail() {
-        return logItems.parallelStream().anyMatch(t -> !t.isIgnore());
+        return logItems.stream().anyMatch(t -> t.getErrType() != null && !t.isIgnore());
     }
 
     public Isduh getIsduh() {
@@ -325,8 +313,6 @@ public class BiTestWorker extends Task<Void> {
         }
         return Utils.stringToProperty(biTest.getUserLogin());
     }
-
-
 
     public void setMainApp(MainApp mainApp) {
         this.mainApp = mainApp;

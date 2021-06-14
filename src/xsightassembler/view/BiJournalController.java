@@ -2,6 +2,7 @@ package xsightassembler.view;
 
 import javafx.animation.Interpolator;
 import javafx.animation.RotateTransition;
+import javafx.application.Platform;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -159,6 +160,7 @@ public class BiJournalController {
         tRunningTests.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
 
 //        running test table
+
         labNumColumn.setCellValueFactory(cellData -> cellData.getValue().getLabNumString());
         netNameColumn.setCellValueFactory(cellData -> cellData.getValue().getBiNetName());
         stageColumn.setCellValueFactory(cellData -> cellData.getValue().getStageString());
@@ -168,7 +170,6 @@ public class BiJournalController {
         icrColumn.setCellValueFactory(cellData -> cellData.getValue().getIcrStatus());
         startDateColumn.setCellValueFactory(cellData -> cellData.getValue().getStartDateString());
         userColumn.setCellValueFactory(cellDate -> cellDate.getValue().getUserLogin());
-
 
         stateColumn.setCellValueFactory(new PropertyValueFactory<BiTestWorker, String>("message"));
 
@@ -234,10 +235,6 @@ public class BiJournalController {
                     if (rowData.getIsduh() != null) {
                         mainApp.showBiTestView(rowData);
                     } else {
-//                        btw.setMainApp(mainApp);
-//                        if (btw.addBiTest()) {
-//                            tRunningTests.refresh();
-//                        }
                         addBiTest(row.getItem().getLabNum());
                     }
                 }
@@ -250,21 +247,8 @@ public class BiJournalController {
                     if (t1 == journalTab) {
                         fillCompleteTable();
                     }
-//                    if (t1 == generalTab) {
-//                        fillTable();
-//                    }
                 }
         );
-
-//        runningTestList.addListener((ListChangeListener<BiTestWorker>) c -> {
-//            while (c.next()){
-//                if (c.wasAdded()) {
-//                    System.out.println(c.get);
-//                }
-//
-//            }
-//        });
-
 
         tRunningTests.setItems(runningTestList);
         fillTable();
