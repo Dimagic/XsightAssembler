@@ -55,7 +55,7 @@ public class BiLogAnalyzer extends Task<FilteredList<LogItem>> {
                 String filename2 = ssh.getFile(settings.getSftpFolder(), "messages.1");
                 String filename = ssh.getFile(settings.getSftpFolder(), "messages");
                 ssh.close();
-                File[] files = filename2 != null ? new File[]{new File(filename2), new File(filename)}:
+                File[] files = filename2 != null ? new File[]{new File(filename2), new File(filename)} :
                         new File[]{new File(filename)};
                 return parseLog(files);
 
@@ -77,14 +77,13 @@ public class BiLogAnalyzer extends Task<FilteredList<LogItem>> {
         try {
             List<String> allLines = new ArrayList<>();
             Arrays.sort(filesList, Comparator.comparingLong(File::lastModified));
-            for (File f: filesList) {
+            for (File f : filesList) {
                 try {
                     allLines.addAll(Files.readAllLines(Paths.get(f.getPath())));
                 } catch (MalformedInputException e) {
                     MsgBox.msgWarning("Incorrect log file found:\n" + f.getName());
                     return null;
                 }
-
             }
 
             int lineNum = 1;
