@@ -12,6 +12,7 @@ import xsightassembler.models.LogItem;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.MalformedInputException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.text.ParseException;
@@ -51,13 +52,13 @@ public class BiLogAnalyzer extends Task<FilteredList<LogItem>> {
                     netName = netName + settings.getNamePostfix();
                 }
                 ssh = new Ssh(netName, settings.getSshUser(), settings.getSshPass());
-                String filename = ssh.getFile(settings.getSftpFolder(), "messages");
                 String filename2 = ssh.getFile(settings.getSftpFolder(), "messages.1");
+                String filename = ssh.getFile(settings.getSftpFolder(), "messages");
                 ssh.close();
-                if (filename != null) {
-                    File[] files = {new File(filename), new File(filename2)};
-                    return parseLog(files);
-                }
+                File[] files = filename2 != null ? new File[]{new File(filename2), new File(filename)}:
+                        new File[]{new File(filename)};
+                return parseLog(files);
+
             }
         } catch (Exception e) {
             LOGGER.error("Exception", e);
@@ -77,7 +78,13 @@ public class BiLogAnalyzer extends Task<FilteredList<LogItem>> {
             List<String> allLines = new ArrayList<>();
             Arrays.sort(filesList, Comparator.comparingLong(File::lastModified));
             for (File f: filesList) {
-                allLines.addAll(Files.readAllLines(Paths.get(f.getPath())));
+                try {
+                    allLines.addAll(Files.readAllLines(Paths.get(f.getPath())));
+                } catch (MalformedInputException e) {
+                    MsgBox.msgWarning("Incorrect log file found:\n" + f.getName());
+                    return null;
+                }
+
             }
 
             int lineNum = 1;
