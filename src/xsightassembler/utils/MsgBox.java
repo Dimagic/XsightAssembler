@@ -32,13 +32,16 @@ public interface MsgBox {
             MainApp.class.getClassLoader().getResourceAsStream("logo.png")));
 
     static String msgInputString(String content) {
-        TextInputDialog dialog = new TextInputDialog();
-        dialog.setTitle(Strings.input);
+        return msgInputString(Strings.input, null, content, null);
+    }
+
+    static String msgInputString(String title, String header, String content, String contentExample) {
+        TextInputDialog dialog = new TextInputDialog(contentExample);
+        dialog.setTitle(title);
         Stage stage = (Stage) dialog.getDialogPane().getScene().getWindow();
         stage.getIcons().add(favicon);
-        dialog.setHeaderText(null);
+        dialog.setHeaderText(header);
         dialog.setContentText(content);
-
         Optional<String> result = dialog.showAndWait();
         return result.orElse(null);
     }

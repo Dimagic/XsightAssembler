@@ -8,6 +8,7 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.input.Clipboard;
+import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
@@ -17,7 +18,12 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.controlsfx.control.RangeSlider;
 import xsightassembler.MainApp;
+import xsightassembler.dao.bi.BiNoteDao;
+import xsightassembler.models.BiNote;
 import xsightassembler.models.LogItem;
+import xsightassembler.utils.BiTestWorker;
+import xsightassembler.utils.CustomException;
+import xsightassembler.utils.MsgBox;
 import xsightassembler.utils.Utils;
 
 import java.util.*;
@@ -30,6 +36,7 @@ public class LogViewController {
     private MainApp mainApp;
     private Stage stage;
     private final Clipboard clipboard = Clipboard.getSystemClipboard();
+    private BiTestWorker btw;
     private FilteredList<LogItem> itemList;
     private List<LogItem> searchResultList = new ArrayList<>();
     private LogItem selectedLogItem;
@@ -110,6 +117,37 @@ public class LogViewController {
                 selectedItemField.setText("");
             } else {
                 selectedItemField.setText(selectedLogItem.getFullMsg());
+                if (event.getButton() == MouseButton.SECONDARY) {
+                    StringBuilder sb = new StringBuilder();
+                    if (btw != null) {
+                        BiNoteDao noteDao = new BiNoteDao();
+                        try {
+                            List<BiNote> notes = noteDao.findByBiTest(btw.getBiTest());
+                            if (notes.size() == 0) {
+                                sb.append("No comments yet");
+                            } else {
+                                sb.append("Comments for current test:\n");
+                                notes.forEach(n -> sb.append(n.getNote()).append("\n"));
+                            }
+                            String comment = MsgBox.msgInputString("Add comment", sb.toString(),
+                                    "comment", selectedLogItem.getMessage());
+                            if (comment != null && !comment.isEmpty()) {
+                                comment = comment.trim();
+                                BiNote biNote = new BiNote();
+                                biNote.setNoteDate(new Date());
+                                biNote.setUser(mainApp.getCurrentUser());
+                                biNote.setBiTest(btw.getBiTest());
+                                biNote.setNote(comment.trim());
+                                noteDao.save(biNote);
+                                MsgBox.msgInfo(String.format("Comment:\n%s\nadded successfully.", comment));
+                            }
+                        } catch (CustomException e) {
+                            LOGGER.error("Exception", e);
+                            MsgBox.msgException(e);
+                        }
+                    }
+
+                }
             }
         });
 
@@ -289,14 +327,11 @@ public class LogViewController {
     private void setDuration() {
         long duration = durationSlider.highValueProperty().longValue() - durationSlider.lowValueProperty().longValue();
         durationLbl.setText(Utils.formatHMSM(duration));
-//        startLbl.setText(Utils.getFormattedDate(startDate));
-//        stopLbl.setText(Utils.getFormattedDate(stopDate));
     }
 
     private void ifIncorrectRangePreset() {
         boolean isIncorrectRangePresent = listView.getItems().stream().anyMatch(LogItem::isIncorrectDateRange);
         boolean isAllItemsInIncorrectRange = listView.getItems().stream().allMatch(LogItem::isIncorrectDateRange);
-//        radioBox.setVisible(isIncorrectRangePresent);
         if (isIncorrectRangePresent && !isAllItemsInIncorrectRange) {
             durationLbl.setText("Found incorrect date range");
         }
@@ -448,6 +483,11 @@ public class LogViewController {
             }
         } catch (IndexOutOfBoundsException ignored) {}
         searchResultLbl.setText(String.format("Selected item %s of  %s", i + 1, searchResultList.size()));
+    }
+
+    public void setBtw(BiTestWorker btw) {
+        this.btw = btw;
+        setItemList(btw.getLogItems());
     }
 
     public void setStage(Stage stage) {

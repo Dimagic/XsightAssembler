@@ -293,7 +293,7 @@ public class MainApp extends Application {
             stage.setScene(scene);
             LogViewController controller = loader.getController();
             controller.setMainApp(this);
-            controller.setItemList(btw.getLogItems());
+            controller.setBtw(btw);
             controller.setStage(stage);
             stage.showAndWait();
         } catch (IOException e) {
