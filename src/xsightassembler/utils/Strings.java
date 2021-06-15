@@ -11,7 +11,7 @@ import java.util.regex.Pattern;
 public class Strings {
     static Logger LOGGER = LogManager.getLogger(Strings.class);
     public static String appName = "Xsight-assembler";
-    public static String VERSION = "0.0.4.1";
+    public static String VERSION = "0.0.4.2";
     public static String appNameWithVer = String.format("%s v%s %s", appName, VERSION, Utils.getComputerName());
 
     public static String manufISDUHModule = "XSTXT0010000500";
