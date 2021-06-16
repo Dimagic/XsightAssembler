@@ -75,6 +75,7 @@ public class BiTestDao implements UniversalDao {
             String q = String.format("select e from BiTest e where e.unplugDate=(select max(e.unplugDate) from BiTest e where e.isduh=%s)", isduh.getId());
             TypedQuery<BiTest> query = session.createQuery(q, BiTest.class);
             BiTest biTest = query.getSingleResult();
+            session.close();
             return biTest;
         } catch (NoResultException ignored) {}
         return null;

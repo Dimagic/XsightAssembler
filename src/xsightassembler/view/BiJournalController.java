@@ -2,7 +2,6 @@ package xsightassembler.view;
 
 import javafx.animation.Interpolator;
 import javafx.animation.RotateTransition;
-import javafx.application.Platform;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
