@@ -9,7 +9,7 @@
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.text.Font?>
 
-<BorderPane fx:id="root" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="600.0" prefWidth="800.0" xmlns="http://javafx.com/javafx/8.0.281" xmlns:fx="http://javafx.com/fxml/1" fx:controller="xsightassembler.view.RootController">
+<BorderPane fx:id="root" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="600.0" prefWidth="800.0" xmlns="http://javafx.com/javafx/8.0.171" xmlns:fx="http://javafx.com/fxml/1" fx:controller="xsightassembler.view.RootController">
    <top>
       <MenuBar BorderPane.alignment="CENTER">
          <menus>
@@ -24,6 +24,9 @@
             <Menu fx:id="adminMenu" mnemonicParsing="false" text="Utils">
               <items>
                   <MenuItem mnemonicParsing="false" onAction="#showLogAnalyzer" text="Log analyzer" />
+                  <MenuItem mnemonicParsing="false" onAction="#refreshTestJournal" text="Refresh journal" />
+                  <MenuItem mnemonicParsing="false" onAction="#showAssemblyJournal" text="Open assembler" />
+                  <SeparatorMenuItem mnemonicParsing="false" />
                   <MenuItem mnemonicParsing="false" onAction="#showAddresses" text="Addresses" />
                 <MenuItem mnemonicParsing="false" onAction="#showUsers" text="Users" />
                   <MenuItem mnemonicParsing="false" onAction="#openSettings" text="Settings" />

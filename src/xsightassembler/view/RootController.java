@@ -48,9 +48,10 @@ public class RootController {
     }
 
     @FXML
-    private void showBiJournal() {
-        mainApp.showBiJournal();
+    private void showAssemblyJournal() {
+        mainApp.showAssemblyView();
     }
+
 
     @FXML
     private void showLogAnalyzer() {
@@ -76,7 +77,11 @@ public class RootController {
             exService.execute(logAnalyzer);
             exService.shutdown();
         }
+    }
 
+    @FXML
+    private void refreshTestJournal() {
+        mainApp.getBiJournalController().refreshJournal();
     }
 
     @FXML
