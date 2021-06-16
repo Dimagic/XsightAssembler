@@ -101,7 +101,8 @@ public class MainApp extends Application {
     public void showMainView() {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getClassLoader().getResource("AssemblyJournalView.fxml"));
-            rootView.setCenter(loader.load());
+            AnchorPane mainPage = loader.load();
+            rootView.setCenter(mainPage);
             assemblyJournalController = loader.getController();
             assemblyJournalController.setMainApp(this);
             assemblyJournalController.setStage(primaryStage);
@@ -120,11 +121,12 @@ public class MainApp extends Application {
             }
             FXMLLoader loader = new FXMLLoader();
             loader.setLocation(getClass().getClassLoader().getResource("AssemblyJournalView.fxml"));
+            AnchorPane page = loader.load();
             assemblyStage = new Stage();
             assemblyStage.setTitle("Assembler");
             assemblyStage.getIcons().add(favicon);
             assemblyStage.initModality(Modality.WINDOW_MODAL);
-            Scene scene = new Scene(loader.load());
+            Scene scene = new Scene(page);
             assemblyStage.setScene(scene);
             AssemblyJournalController assemblyController = loader.getController();
             assemblyController.setMainApp(this);
@@ -143,12 +145,13 @@ public class MainApp extends Application {
         try {
             FXMLLoader loader = new FXMLLoader();
             loader.setLocation(getClass().getClassLoader().getResource("SettingsView.fxml"));
+            AnchorPane page = loader.load();
             Stage stage = new Stage();
             stage.setTitle("Settings");
             stage.getIcons().add(favicon);
             stage.initModality(Modality.WINDOW_MODAL);
             stage.initOwner(primaryStage);
-            Scene scene = new Scene(loader.load());
+            Scene scene = new Scene(page);
             stage.setScene(scene);
             stage.setResizable(false);
             SettingsController settingsViewController = loader.getController();
@@ -166,12 +169,13 @@ public class MainApp extends Application {
         try {
             FXMLLoader loader = new FXMLLoader();
             loader.setLocation(getClass().getClassLoader().getResource("MailAddressView.fxml"));
+            AnchorPane page = loader.load();
             Stage stage = new Stage();
             stage.setTitle("Addresses");
             stage.getIcons().add(favicon);
             stage.initModality(Modality.WINDOW_MODAL);
             stage.initOwner(primaryStage);
-            Scene scene = new Scene(loader.load());
+            Scene scene = new Scene(page);
             stage.setScene(scene);
             stage.setResizable(false);
             MailAddressController mailAddressController = loader.getController();
@@ -187,11 +191,12 @@ public class MainApp extends Application {
         try {
             FXMLLoader loader = new FXMLLoader();
             loader.setLocation(getClass().getClassLoader().getResource("AllInOneAssemblerView.fxml"));
+            AnchorPane page = loader.load();
             Stage stage = new Stage();
             stage.getIcons().add(favicon);
             stage.initModality(Modality.WINDOW_MODAL);
             stage.initOwner(assemblyStage);
-            Scene scene = new Scene(loader.load());
+            Scene scene = new Scene(page);
             stage.setScene(scene);
             stage.setResizable(false);
             AllInOneAssemblerController controller = loader.getController();
@@ -215,11 +220,12 @@ public class MainApp extends Application {
         try {
             FXMLLoader loader = new FXMLLoader();
             loader.setLocation(getClass().getClassLoader().getResource("BiJournal.fxml"));
+            AnchorPane page = loader.load();
             biJournalStage = new Stage();
             biJournalStage.setTitle("BI journal");
             biJournalStage.getIcons().add(favicon);
             biJournalStage.initModality(Modality.WINDOW_MODAL);
-            Scene scene = new Scene(loader.load());
+            Scene scene = new Scene(page);
             biJournalStage.setScene(scene);
             biJournalController = loader.getController();
             biJournalStage.addEventHandler(WindowEvent.WINDOW_HIDDEN, e -> {
@@ -238,7 +244,8 @@ public class MainApp extends Application {
     private void showBiJournal2() {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getClassLoader().getResource("BiJournal.fxml"));
-            rootView.setCenter(loader.load());
+            AnchorPane mainPage = loader.load();
+            rootView.setCenter(mainPage);
             biJournalController = loader.getController();
             biJournalController.setMainApp(this);
             biJournalController.setStage(primaryStage);
@@ -254,11 +261,12 @@ public class MainApp extends Application {
                 palletStage.requestFocus();
             } else {
                 FXMLLoader loader = new FXMLLoader(getClass().getClassLoader().getResource("PalletView.fxml"));
+                AnchorPane page = loader.load();
                 palletStage = new Stage();
                 palletStage.setTitle("Pallet journal");
                 palletStage.getIcons().add(favicon);
                 palletStage.initModality(Modality.WINDOW_MODAL);
-                Scene scene = new Scene(loader.load());
+                Scene scene = new Scene(page);
                 palletStage.setScene(scene);
                 PalletController controller = loader.getController();
                 controller.setMainApp(this);
@@ -278,11 +286,12 @@ public class MainApp extends Application {
     public void showLogView(BiTestWorker btw) {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getClassLoader().getResource("LogView.fxml"));
+            SplitPane page = loader.load();
             Stage stage = new Stage();
             stage.setTitle("Log analyze: " + btw.getIsduh().getSn());
             stage.getIcons().add(favicon);
             stage.initModality(Modality.WINDOW_MODAL);
-            Scene scene = new Scene(loader.load());
+            Scene scene = new Scene(page);
             stage.setScene(scene);
             LogViewController controller = loader.getController();
             controller.setMainApp(this);
@@ -301,11 +310,12 @@ public class MainApp extends Application {
         }
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getClassLoader().getResource("LogView.fxml"));
+            SplitPane page = loader.load();
             Stage stage = new Stage();
             stage.setTitle("Analysis of selected logs");
             stage.getIcons().add(favicon);
             stage.initModality(Modality.WINDOW_MODAL);
-            Scene scene = new Scene(loader.load());
+            Scene scene = new Scene(page);
             stage.setScene(scene);
             LogViewController controller = loader.getController();
             controller.setMainApp(this);
@@ -325,10 +335,11 @@ public class MainApp extends Application {
             } else {
                 FXMLLoader loader = new FXMLLoader();
                 loader.setLocation(getClass().getClassLoader().getResource("BiTestView.fxml"));
+                AnchorPane page = loader.load();
                 Stage stage = new Stage();
                 stage.getIcons().add(favicon);
                 stage.initModality(Modality.WINDOW_MODAL);
-                Scene scene = new Scene(loader.load());
+                Scene scene = new Scene(page);
                 stage.setScene(scene);
                 BiTestController controller = loader.getController();
                 stage.addEventHandler(WindowEvent.WINDOW_SHOWN, e -> {
@@ -363,14 +374,14 @@ public class MainApp extends Application {
     public void showAllModuleView(Class<?> c, Stage parentStage, Object o) {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getClassLoader().getResource("AllModuleView.fxml"));
+            SplitPane page = loader.load();
             AllModuleController controller = loader.getController();
             Stage stage = new Stage();
             stage.getIcons().add(favicon);
             stage.initModality(Modality.WINDOW_MODAL);
-            stage.initOwner(parentStage);
-            Scene scene = new Scene(loader.load());
+            stage.initOwner(assemblyStage);
+            Scene scene = new Scene(page);
             stage.setScene(scene);
-
             controller.setMainApp(this);
             if (o != null) {
                 controller.setTypeModule(o.getClass());
@@ -381,7 +392,7 @@ public class MainApp extends Application {
             controller.setStage(stage);
 
             stage.showAndWait();
-        } catch (IOException e) {
+        } catch (Exception e) {
             LOGGER.error("Exception", e);
             MsgBox.msgException(e);
         }
@@ -391,11 +402,12 @@ public class MainApp extends Application {
         try {
             FXMLLoader loader = new FXMLLoader();
             loader.setLocation(getClass().getClassLoader().getResource("HistoryView.fxml"));
+            AnchorPane page = loader.load();
             Stage stage = new Stage();
             stage.getIcons().add(favicon);
             stage.initModality(Modality.WINDOW_MODAL);
             stage.initOwner(owner);
-            Scene scene = new Scene(loader.load());
+            Scene scene = new Scene(page);
             stage.setScene(scene);
             stage.setResizable(false);
             HistoryController controller = loader.getController();
@@ -411,13 +423,14 @@ public class MainApp extends Application {
     public void showIsduhEditorView(Isduh isduh) {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getClassLoader().getResource("IsduhEditorView.fxml"));
+            AnchorPane page = loader.load();
             IsduhEditorController controller = loader.getController();
             Stage stage = new Stage();
             stage.getIcons().add(favicon);
             stage.initModality(Modality.WINDOW_MODAL);
             stage.initOwner(primaryStage);
             stage.setResizable(false);
-            Scene scene = new Scene(loader.load());
+            Scene scene = new Scene(page);
             stage.setScene(scene);
             stage.setOnHiding(e -> {
                 assemblyJournalController.fillTable();
@@ -443,12 +456,13 @@ public class MainApp extends Application {
     public void showUsersView() {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getClassLoader().getResource("UsersView.fxml"));
+            AnchorPane page = loader.load();
             UsersController controller = loader.getController();
             Stage stage = new Stage();
             stage.getIcons().add(favicon);
             stage.initModality(Modality.WINDOW_MODAL);
             stage.initOwner(primaryStage);
-            Scene scene = new Scene(loader.load());
+            Scene scene = new Scene(page);
             stage.setScene(scene);
 
             stage.showAndWait();
