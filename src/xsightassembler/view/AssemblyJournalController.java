@@ -33,7 +33,7 @@ import java.lang.reflect.Method;
 import java.util.*;
 import java.util.stream.IntStream;
 
-public class MainController {
+public class AssemblyJournalController {
     Logger LOGGER = LogManager.getLogger(this.getClass().getName());
     private MainApp mainApp;
     private Method method;

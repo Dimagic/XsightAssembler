@@ -28,7 +28,7 @@ public class AllInOneAssemblerController {
     Logger LOGGER = LogManager.getLogger(this.getClass().getName());
     private MainApp mainApp;
     private Stage stage;
-    private MainController mainController;
+    private AssemblyJournalController assemblyJournalController;
     private final IsduhService isduhService = new IsduhService();
     private final UpperSensorModuleService upperService = new UpperSensorModuleService();
     private final AzimutModuleService azimutService = new AzimutModuleService();
@@ -304,7 +304,7 @@ public class AllInOneAssemblerController {
             isduh.setAssemblyStatus(isAllDataFilled() ? 1 : 0);
             isduhService.saveOrUpdate(isduh);
             stage.close();
-            mainController.fillTable();
+            assemblyJournalController.fillTable();
         } catch (CustomException e) {
             String msg = getCause(e).getLocalizedMessage();
             String key = StringUtils.substringBetween(msg, "Key (", ")=(");
@@ -679,8 +679,8 @@ public class AllInOneAssemblerController {
         return false;
     }
 
-    public void setMainController(MainController mainController) {
-        this.mainController = mainController;
+    public void setMainController(AssemblyJournalController assemblyJournalController) {
+        this.assemblyJournalController = assemblyJournalController;
     }
 
     public void setStage(Stage stage) {
