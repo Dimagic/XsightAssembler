@@ -42,6 +42,11 @@ public class VideoPlayer {
         try {
             Path p = Paths.get(Objects.requireNonNull(Utils.getSettings()).getVlcFile());
             vlcFolder = p.getParent().toString();
+            NativeLibrary.addSearchPath(RuntimeUtil.getLibVlcLibraryName(), vlcFolder);
+            Native.loadLibrary(RuntimeUtil.getLibVlcLibraryName(), LibVlc.class);
+        } catch (UnsatisfiedLinkError e) {
+            MsgBox.msgWarning("Unable to load library 'libvlc'.\nInstall VLC player and try again.");
+            return;
         } catch (NullPointerException e) {
             MsgBox.msgWarning("VLC path not found");
             return;
@@ -62,9 +67,6 @@ public class VideoPlayer {
         p.add(c);
         f.add(p);
 
-
-        NativeLibrary.addSearchPath(RuntimeUtil.getLibVlcLibraryName(), vlcFolder);
-        Native.loadLibrary(RuntimeUtil.getLibVlcLibraryName(), LibVlc.class);
         MediaPlayerFactory mpf = new MediaPlayerFactory();
         emp = mpf.newEmbeddedMediaPlayer(new Win32FullScreenStrategy(f));
         f.addWindowListener(new WindowAdapter() {
