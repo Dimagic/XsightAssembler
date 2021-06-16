@@ -21,6 +21,8 @@ import xsightassembler.MainApp;
 import xsightassembler.dao.bi.BiNoteDao;
 import xsightassembler.models.BiNote;
 import xsightassembler.models.LogItem;
+import xsightassembler.services.bi.BiNoteServise;
+import xsightassembler.services.bi.BiTestService;
 import xsightassembler.utils.BiTestWorker;
 import xsightassembler.utils.CustomException;
 import xsightassembler.utils.MsgBox;
@@ -120,9 +122,10 @@ public class LogViewController {
                 if (event.getButton() == MouseButton.SECONDARY) {
                     StringBuilder sb = new StringBuilder();
                     if (btw != null) {
-                        BiNoteDao noteDao = new BiNoteDao();
+                        BiNoteServise noteServise = new BiNoteServise();
+                        BiTestService biTestService = new BiTestService();
                         try {
-                            List<BiNote> notes = noteDao.findByBiTest(btw.getBiTest());
+                            List<BiNote> notes = noteServise.findByBiTest(btw.getBiTest());
                             if (notes.size() == 0) {
                                 sb.append("No comments yet");
                             } else {
@@ -138,7 +141,9 @@ public class LogViewController {
                                 biNote.setUser(mainApp.getCurrentUser());
                                 biNote.setBiTest(btw.getBiTest());
                                 biNote.setNote(comment.trim());
-                                noteDao.save(biNote);
+                                noteServise.save(biNote);
+                                btw.getBiTest().addNote(biNote);
+                                biTestService.saveOrUpdate(btw.getBiTest());
                                 MsgBox.msgInfo(String.format("Comment:\n%s\nadded successfully.", comment));
                             }
                         } catch (CustomException e) {
