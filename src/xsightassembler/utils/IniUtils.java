@@ -14,7 +14,7 @@ import java.util.regex.Pattern;
 public class IniUtils {
     Logger LOGGER = LogManager.getLogger(this.getClass().getName());
     private final Wini iniFile;
-    private final String sectionName;
+    private String sectionName;
 
     public IniUtils(String fileName, String sectionName) throws IOException {
         this.iniFile = new Wini(new File(fileName));
@@ -81,5 +81,9 @@ public class IniUtils {
             }
         }
         return map;
+    }
+
+    public void setSectionName(String sectionName) {
+        this.sectionName = sectionName;
     }
 }
