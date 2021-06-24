@@ -233,11 +233,11 @@ public class AssemblyJournalController {
     }
 
     @FXML
-    private void showAssembler() {
+    private void showModuleAssembler() {
         try {
             Class<?> c = Class.forName(String.format("xsightassembler.models.%sModule",
                     moduleNameCombo.getSelectionModel().getSelectedItem()));
-            mainApp.showAllModuleView(c);
+            mainApp.showModuleAssemblerView(c);
         } catch (ClassNotFoundException e) {
             LOGGER.error("Exception", e);
             MsgBox.msgException(e);

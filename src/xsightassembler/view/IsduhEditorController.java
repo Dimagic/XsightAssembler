@@ -313,7 +313,7 @@ public class IsduhEditorController {
                 Object o = isduh.getModulesMap().get(value);
                 if (o != null) {
                     ((Button) node).setDisable(false);
-                    ((Button) node).setOnAction(e -> mainApp.showAllModuleView(o.getClass(), stage, o));
+                    ((Button) node).setOnAction(e -> mainApp.showModuleAssemblerView(o.getClass(), stage, o));
                 } else {
                     ((Button) node).setDisable(true);
                 }

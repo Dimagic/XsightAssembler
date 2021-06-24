@@ -30,7 +30,7 @@
                   <Insets left="10.0" top="14.0" />
                </HBox.margin>
             </ComboBox>
-            <Button mnemonicParsing="false" onAction="#showAssembler" prefHeight="25.0" prefWidth="150.0" text="Open module journal">
+            <Button mnemonicParsing="false" onAction="#showModuleAssembler" prefHeight="25.0" prefWidth="150.0" text="Open module journal">
                <HBox.margin>
                   <Insets left="10.0" top="14.0" />
                </HBox.margin>
