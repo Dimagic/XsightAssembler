@@ -7,6 +7,7 @@ import xsightassembler.view.BiTestController;
 
 import java.io.InputStream;
 import java.io.PrintStream;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.Vector;
@@ -25,6 +26,13 @@ public class SshClient {
         this.username = username;
         this.password = password;
         this.btc = btc;
+    }
+
+    public SshClient(String hostname, String username, String password) {
+        this.hostname = hostname;
+        this.username = username;
+        this.password = password;
+        this.btc = null;
     }
 
     public Session getSession() {
@@ -57,15 +65,15 @@ public class SshClient {
             session.setConfig(config);
             session.setPassword(password);
 
-            btc.addToConsole("Connecting SSH to " + hostname + " - Please wait for few seconds... ");
+            writeToBiTestConsole("Connecting SSH to " + hostname + " - Please wait for few seconds... ");
             session.connect();
-            btc.addToConsole("Connected!");
+            writeToBiTestConsole("Connected!");
         } catch (Exception e) {
             if (e.getCause().toString().contains("UnknownHostException")){
-                btc.addToConsole("Unknown host: " + hostname);
+                writeToBiTestConsole("Unknown host: " + hostname);
                 return null;
             }else if (e.getCause().toString().contains("Connection timed out")){
-                btc.addToConsole("Connection lost. Retry after 30 seconds.");
+                writeToBiTestConsole("Connection lost. Retry after 30 seconds.");
                 try {
                     Thread.sleep(30000);
                     if (!btc.getShutdown()) {
@@ -92,17 +100,45 @@ public class SshClient {
             if (channel == null) {
                 return false;
             }
-            btc.addToConsole("Sending commands...");
+            writeToBiTestConsole("Sending commands...");
             sendCommands(channel, commands);
 
             readChannelOutput(channel);
-            btc.addToConsole("Finished sending commands!");
+            writeToBiTestConsole("Finished sending commands!");
             return true;
         } catch (Exception e) {
             LOGGER.error("Exception", e);
             MsgBox.msgException(e);
         }
         return false;
+    }
+
+    public String executeSingleCommand(String command) {
+        try {
+            Channel channel = getChannel();
+            if (channel == null) {
+                return null;
+            }
+            ArrayList<String> tmp = new ArrayList<>();
+            tmp.add(command);
+            sendCommands(channel, tmp);
+
+            byte[] buffer = new byte[1024];
+            InputStream in = channel.getInputStream();
+            String line = "";
+            while (in.available() > 0) {
+                int i = in.read(buffer, 0, 1024);
+                if (i < 0) {
+                    break;
+                }
+                line = new String(buffer, 0, i);
+            }
+            return line;
+        } catch (Exception e) {
+            LOGGER.error("Exception", e);
+            MsgBox.msgException(e);
+        }
+        return null;
     }
 
     private void sendCommands(Channel channel, List<String> commands) {
@@ -148,7 +184,7 @@ public class SshClient {
                         break;
                     }
                     line = new String(buffer, 0, i);
-                    btc.addToConsole(line.trim());
+                    writeToBiTestConsole(line.trim());
                 }
 
                 if (line.contains("logout")) {
@@ -236,6 +272,12 @@ public class SshClient {
         } catch (Exception e) {
             LOGGER.error("Exception", e);
             MsgBox.msgException(e);
+        }
+    }
+
+    private void writeToBiTestConsole(String val) {
+        if (btc != null) {
+            btc.addToConsole(val);
         }
     }
 
