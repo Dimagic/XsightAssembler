@@ -80,8 +80,7 @@ public class AssemblyJournalController {
         refreshImg.setImage(new Image(Objects.requireNonNull(
                 getClass().getClassLoader().getResourceAsStream("refresh.png"))));
         refreshImg.addEventHandler(MouseEvent.MOUSE_CLICKED, event -> {
-            filterField.clear();
-            fillTable();
+            refreshJournal();
             RotateTransition rt = new RotateTransition(Duration.millis(300), refreshImg);
             rt.setByAngle(360);
             rt.setCycleCount(1);
@@ -200,6 +199,11 @@ public class AssemblyJournalController {
             }
         });
         tIsduh.getColumns().add(column);
+    }
+
+    private void refreshJournal() {
+        filterField.clear();
+        fillTable();
     }
 
     @FXML

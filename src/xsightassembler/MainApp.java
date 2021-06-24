@@ -128,9 +128,9 @@ public class MainApp extends Application {
             assemblyStage.initModality(Modality.WINDOW_MODAL);
             Scene scene = new Scene(page);
             assemblyStage.setScene(scene);
-            AssemblyJournalController assemblyController = loader.getController();
-            assemblyController.setMainApp(this);
-            assemblyController.setStage(assemblyStage);
+            assemblyJournalController = loader.getController();
+            assemblyJournalController.setMainApp(this);
+            assemblyJournalController.setStage(assemblyStage);
             assemblyStage.addEventHandler(WindowEvent.WINDOW_CLOSE_REQUEST, e -> {
                 assemblyStage = null;
             });
