@@ -32,14 +32,27 @@ public class RootController {
 
     }
 
-    private void initMenu() {
+    public void initMenu(boolean isAdmin) {
+        if (isAdmin) {
+            initAdminMenu();
+        } else {
+            initUserMenu();
+        }
+    }
+
+    private void initAdminMenu() {
         menuBar.getMenus().addAll(getFileMenu(), getUtilsMenu(), getSettingsMenu());
+    }
+
+    private void initUserMenu() {
+        menuBar.getMenus().addAll(getFileMenu());
     }
 
     private Menu getFileMenu() {
         Menu menu = new Menu("File");
         MenuItem menuLogout = new MenuItem("Logout");
         menuLogout.setOnAction(e -> {
+            menuBar.getMenus().clear();
             logout();
         });
 
@@ -127,38 +140,11 @@ public class RootController {
         mainApp.login();
     }
 
-
-//    public void setAdminToolsVisible(boolean val) {
-//        adminMenu.setVisible(val);
-//        switchTo.setDisable(true);
-//        if (val) {
-//            switchTo.setText("Switch to assembler");
-//            switchTo.setOnAction(e -> {
-//                BiJournalController bjc = mainApp.getBiJournalController();
-//                if (bjc != null) {
-//                    bjc.shutdown();
-//                }
-//                root.setCenter(null);
-//                mainApp.showMainView();
-//                setAdminToolsVisible(false);
-//            });
-//        } else {
-//            switchTo.setText("Switch to tests");
-//            switchTo.setOnAction(e -> {
-//                root.setCenter(null);
-//                mainApp.showBiJournal();
-//                setAdminToolsVisible(true);
-//            });
-//        }
-//
-//    }
-
     public void setCurrentDbLbl(String val){
         currentDbLbl.setText(val);
     }
 
     public void setMainApp(MainApp mainApp) {
         this.mainApp = mainApp;
-        initMenu();
     }
 }

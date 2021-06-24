@@ -205,9 +205,6 @@ public class MainApp extends Application {
             controller.setMainController(assemblyJournalController);
             if (isduh != null) {
                 controller.setIsduhSystem(isduh);
-                stage.setTitle("Assembly system SN: " + isduh.getSn());
-            } else {
-                stage.setTitle("New system assembly");
             }
             stage.showAndWait();
         } catch (IOException e) {
@@ -363,19 +360,19 @@ public class MainApp extends Application {
         return false;
     }
 
-    public void showAllModuleView(Class<?> c) {
-        showAllModuleView(c, primaryStage);
+    public void showModuleAssemblerView(Class<?> c) {
+        showModuleAssemblerView(c, primaryStage);
     }
 
-    public void showAllModuleView(Class<?> c, Stage parentStage) {
-        showAllModuleView(c, parentStage, null);
+    public void showModuleAssemblerView(Class<?> c, Stage parentStage) {
+        showModuleAssemblerView(c, parentStage, null);
     }
 
-    public void showAllModuleView(Class<?> c, Stage parentStage, Object o) {
+    public void showModuleAssemblerView(Class<?> c, Stage parentStage, Object o) {
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getClassLoader().getResource("AllModuleView.fxml"));
+            FXMLLoader loader = new FXMLLoader(getClass().getClassLoader().getResource("ModuleAssemblerView.fxml"));
             SplitPane page = loader.load();
-            AllModuleController controller = loader.getController();
+            ModuleAssemblerController controller = loader.getController();
             Stage stage = new Stage();
             stage.getIcons().add(favicon);
             stage.initModality(Modality.WINDOW_MODAL);
@@ -562,7 +559,7 @@ public class MainApp extends Application {
                 userService.update(user);
                 currentUser = user;
 
-                rootController.setAdminToolsVisible(user.getUserRole() == 1);
+                rootController.initMenu(user.getUserRole() == 1);
                 this.primaryStage.setTitle(Strings.appNameWithVer + " User: " + user.getLogin());
                 if (assemblyJournalController != null) {
                     assemblyJournalController.getMainPane().setVisible(true);
