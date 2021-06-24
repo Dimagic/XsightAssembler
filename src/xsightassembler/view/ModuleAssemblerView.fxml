@@ -5,7 +5,7 @@
 <?import javafx.scene.control.TableView?>
 <?import javafx.scene.layout.AnchorPane?>
 
-<SplitPane fx:id="splitPane" dividerPositions="0.5" minHeight="400.0" minWidth="600.0" prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/8.0.281" xmlns:fx="http://javafx.com/fxml/1" fx:controller="xsightassembler.view.AllModuleController">
+<SplitPane fx:id="splitPane" dividerPositions="0.5" minHeight="400.0" minWidth="600.0" prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/8.0.281" xmlns:fx="http://javafx.com/fxml/1" fx:controller="xsightassembler.view.ModuleAssemblerController">
    <items>
       <AnchorPane fx:id="leftPane" maxWidth="300.0" minHeight="300.0">
          <children>
