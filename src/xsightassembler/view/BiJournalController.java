@@ -224,12 +224,20 @@ public class BiJournalController {
 
         tRunningTests.setRowFactory(tv -> {
             TableRow<BiTestWorker> row = new TableRow<>();
+            ContextMenu cm = new ContextMenu();
+            MenuItem mi1 = new MenuItem("Log analyzer");
+            mi1.setOnAction((event) -> {
+                mainApp.showLogView(row.getItem());
+            });
+            MenuItem mi2 = new MenuItem("Update logs");
+            mi2.setOnAction((event) -> {
+                row.getItem().forceLogAnalyzerTask();
+            });
+            cm.getItems().addAll(mi1, mi2);
             row.setOnMouseClicked(event -> {
-                if (event.getButton() == MouseButton.SECONDARY && !row.isEmpty()) {
-                    if (row.getItem().getLogItems() != null) {
-                        mainApp.showLogView(row.getItem());
-                    }
-                } else if (event.getClickCount() == 2 && (!row.isEmpty())) {
+                if (event.getButton() == MouseButton.SECONDARY && !row.isEmpty() && row.getItem().getIsduh() != null) {
+                    cm.show(tRunningTests, event.getScreenX(), event.getScreenY());
+                } else if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2 && (!row.isEmpty())) {
                     BiTestWorker rowData = row.getItem();
                     if (rowData.getIsduh() != null) {
                         mainApp.showBiTestView(rowData);
