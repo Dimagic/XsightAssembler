@@ -117,6 +117,12 @@ public class BiTestWorker extends Task<Void> {
         return null;
     }
 
+    public void forceLogAnalyzerTask() {
+        logTimer = 0;
+        logAnalyzerTask(TimeUnit.MILLISECONDS.toMinutes(
+                System.currentTimeMillis() - biTest.getStartDate().getTime()));
+    }
+
     private void logAnalyzerTask(long minutes) {
         if (logTimer == minutes || minutes < settings.getStartAnalyzeShiftInt()) {
             return;
