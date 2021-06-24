@@ -3,6 +3,7 @@ package xsightassembler.view;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
+import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
 import javafx.scene.layout.BorderPane;
 import javafx.stage.FileChooser;
@@ -23,37 +24,75 @@ public class RootController {
     @FXML
     private Label currentDbLbl;
     @FXML
-    private Menu adminMenu;
-    @FXML
-    private MenuItem switchTo;
+    private MenuBar menuBar;
+
 
     @FXML
     public void initialize(){
-        adminMenu.setVisible(false);
+
     }
 
-    @FXML
-    private void openSettings(){
-        mainApp.showSettingsDialog();
+    private void initMenu() {
+        menuBar.getMenus().addAll(getFileMenu(), getUtilsMenu(), getSettingsMenu());
     }
 
-    @FXML
-    private void showUsers(){
-        mainApp.showUsersView();
+    private Menu getFileMenu() {
+        Menu menu = new Menu("File");
+        MenuItem menuLogout = new MenuItem("Logout");
+        menuLogout.setOnAction(e -> {
+            logout();
+        });
+
+        MenuItem menuExit = new MenuItem("Exit");
+        menuExit.setOnAction(e -> {
+            System.exit(0);
+        });
+        menu.getItems().addAll(menuLogout, menuExit);
+        return menu;
     }
 
-    @FXML
-    private void showAddresses() {
-        mainApp.showMailAddressView();
+    private Menu getUtilsMenu() {
+        Menu menu = new Menu("Utils");
+        MenuItem menuLog = new MenuItem("Open log analyzer");
+        menuLog.setOnAction(e -> {
+            showLogAnalyzer();
+        });
+
+        MenuItem menuAssembler = new MenuItem("Open assembler");
+        menuAssembler.setOnAction(e -> {
+            mainApp.showAssemblyView();
+        });
+
+        MenuItem menuRefresh = new MenuItem("Refresh test journal");
+        menuRefresh.setOnAction(e -> {
+            mainApp.getBiJournalController().refreshJournal();
+        });
+
+        menu.getItems().addAll(menuLog, menuAssembler, menuRefresh);
+        return menu;
     }
 
-    @FXML
-    private void showAssemblyJournal() {
-        mainApp.showAssemblyView();
+    private Menu getSettingsMenu() {
+        Menu menu = new Menu("Settings");
+        MenuItem menuAddress = new MenuItem("Addresses");
+        menuAddress.setOnAction(e -> {
+            mainApp.showMailAddressView();
+        });
+
+        MenuItem menuUsers = new MenuItem("Users");
+        menuUsers.setOnAction(e -> {
+            mainApp.showUsersView();
+        });
+
+        MenuItem menuSettings = new MenuItem("Settings");
+        menuSettings.setOnAction(e -> {
+            mainApp.showSettingsDialog();
+        });
+
+        menu.getItems().addAll(menuAddress, menuUsers, menuSettings);
+        return menu;
     }
 
-
-    @FXML
     private void showLogAnalyzer() {
         String startFolder = Utils.getSettings().getLogFolder();
         FileChooser fileChooser = new FileChooser();
@@ -79,12 +118,6 @@ public class RootController {
         }
     }
 
-    @FXML
-    private void refreshTestJournal() {
-        mainApp.getBiJournalController().refreshJournal();
-    }
-
-    @FXML
     private void logout(){
         BiJournalController bjc = mainApp.getBiJournalController();
         if (bjc != null) {
@@ -92,43 +125,33 @@ public class RootController {
         }
         root.setCenter(null);
         mainApp.login();
-//        System.out.println(getController(root.getCenter()));
-//        adminMenu.setVisible(false);
-//        mainApp.getMainController().getMainPane().setVisible(false);
-//        mainApp.getPrimaryStage().setTitle(Strings.appNameWithVer);
-//        mainApp.getPrimaryStage().close();
-//        mainApp.initRootLayout();
-    }
-    
-    @FXML
-    private void exit(){
-        System.exit(0);
     }
 
-    public void setAdminToolsVisible(boolean val) {
-        adminMenu.setVisible(val);
-        switchTo.setDisable(true);
-        if (val) {
-            switchTo.setText("Switch to assembler");
-            switchTo.setOnAction(e -> {
-                BiJournalController bjc = mainApp.getBiJournalController();
-                if (bjc != null) {
-                    bjc.shutdown();
-                }
-                root.setCenter(null);
-                mainApp.showMainView();
-                setAdminToolsVisible(false);
-            });
-        } else {
-            switchTo.setText("Switch to tests");
-            switchTo.setOnAction(e -> {
-                root.setCenter(null);
-                mainApp.showBiJournal();
-                setAdminToolsVisible(true);
-            });
-        }
 
-    }
+//    public void setAdminToolsVisible(boolean val) {
+//        adminMenu.setVisible(val);
+//        switchTo.setDisable(true);
+//        if (val) {
+//            switchTo.setText("Switch to assembler");
+//            switchTo.setOnAction(e -> {
+//                BiJournalController bjc = mainApp.getBiJournalController();
+//                if (bjc != null) {
+//                    bjc.shutdown();
+//                }
+//                root.setCenter(null);
+//                mainApp.showMainView();
+//                setAdminToolsVisible(false);
+//            });
+//        } else {
+//            switchTo.setText("Switch to tests");
+//            switchTo.setOnAction(e -> {
+//                root.setCenter(null);
+//                mainApp.showBiJournal();
+//                setAdminToolsVisible(true);
+//            });
+//        }
+//
+//    }
 
     public void setCurrentDbLbl(String val){
         currentDbLbl.setText(val);
@@ -136,5 +159,6 @@ public class RootController {
 
     public void setMainApp(MainApp mainApp) {
         this.mainApp = mainApp;
+        initMenu();
     }
 }

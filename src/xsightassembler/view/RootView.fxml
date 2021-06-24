@@ -1,39 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.scene.control.Label?>
-<?import javafx.scene.control.Menu?>
 <?import javafx.scene.control.MenuBar?>
-<?import javafx.scene.control.MenuItem?>
-<?import javafx.scene.control.SeparatorMenuItem?>
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.text.Font?>
 
 <BorderPane fx:id="root" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="600.0" prefWidth="800.0" xmlns="http://javafx.com/javafx/8.0.171" xmlns:fx="http://javafx.com/fxml/1" fx:controller="xsightassembler.view.RootController">
    <top>
-      <MenuBar BorderPane.alignment="CENTER">
-         <menus>
-            <Menu mnemonicParsing="false" text="File">
-              <items>
-                  <MenuItem fx:id="switchTo" mnemonicParsing="false" text="Switch to" />
-                  <MenuItem mnemonicParsing="false" onAction="#logout" text="Logout" />
-                  <SeparatorMenuItem mnemonicParsing="false" />
-                <MenuItem mnemonicParsing="false" onAction="#exit" text="Exit" />
-              </items>
-            </Menu>
-            <Menu fx:id="adminMenu" mnemonicParsing="false" text="Utils">
-              <items>
-                  <MenuItem mnemonicParsing="false" onAction="#showLogAnalyzer" text="Log analyzer" />
-                  <MenuItem mnemonicParsing="false" onAction="#refreshTestJournal" text="Refresh journal" />
-                  <MenuItem mnemonicParsing="false" onAction="#showAssemblyJournal" text="Open assembler" />
-                  <SeparatorMenuItem mnemonicParsing="false" />
-                  <MenuItem mnemonicParsing="false" onAction="#showAddresses" text="Addresses" />
-                <MenuItem mnemonicParsing="false" onAction="#showUsers" text="Users" />
-                  <MenuItem mnemonicParsing="false" onAction="#openSettings" text="Settings" />
-              </items>
-            </Menu>
-         </menus>
-      </MenuBar>
+      <MenuBar fx:id="menuBar" BorderPane.alignment="CENTER" />
    </top>
    <bottom>
       <AnchorPane prefHeight="20.0" BorderPane.alignment="CENTER">
