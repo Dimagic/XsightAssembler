@@ -20,6 +20,7 @@ import xsightassembler.services.PalletService;
 import xsightassembler.utils.*;
 
 import java.util.Date;
+import java.util.stream.Collectors;
 
 public class PalletController {
     Logger LOGGER = LogManager.getLogger(this.getClass().getName());
@@ -262,12 +263,15 @@ public class PalletController {
 
     private void fillPalletsTable() {
         try {
-//            tPallets.getItems().clear();
-            FilteredList<Pallet> palletFilteredList = new FilteredList<>(FXCollections.observableArrayList(palletService.findAll()));
+            ObservableList<Pallet> palletsList = FXCollections.observableArrayList(palletService.findAll());
             if (hideClosed.isSelected()) {
-                palletFilteredList.setPredicate(c -> !c.isClosed());
+                tPallets.setItems(FXCollections.observableArrayList(
+                        palletsList.parallelStream().filter(c -> !c.isClosed()).collect(Collectors.toList())));
+            } else {
+                tPallets.setItems(palletsList);
             }
-            tPallets.setItems(palletFilteredList);
+
+            tPallets.refresh();
         } catch (CustomException e) {
             LOGGER.error("exception", e);
             MsgBox.msgException(e);
