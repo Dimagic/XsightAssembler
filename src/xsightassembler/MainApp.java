@@ -292,8 +292,8 @@ public class MainApp extends Application {
             stage.setScene(scene);
             LogViewController controller = loader.getController();
             controller.setMainApp(this);
-            controller.setBtw(btw);
             controller.setStage(stage);
+            controller.setBtw(btw);
             stage.showAndWait();
         } catch (IOException e) {
             LOGGER.error("Exception", e);
