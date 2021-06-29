@@ -2,6 +2,7 @@
 target/
 src/resources/
 src/test/
+reports/
 logs/
 tmp/
 
