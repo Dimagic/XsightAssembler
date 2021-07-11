@@ -53,7 +53,9 @@ public class BowlModuleDao implements UniversalDao {
             query.select(root).where(builder.or(builder.equal(root.get("module"), sn),
                     builder.equal(root.get("comEx"), sn),
                     builder.equal(root.get("breakable"), sn),
-                    builder.equal(root.get("carrier"), sn)));
+                    builder.equal(root.get("carrier"), sn),
+                    builder.equal(root.get("mac"), sn),
+                    builder.equal(root.get("flash"), sn)));
 
             Query<BowlModule> q = session.createQuery(query);
             return q.getSingleResult();

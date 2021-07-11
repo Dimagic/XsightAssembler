@@ -56,7 +56,7 @@ public class BowlModule {
         this.module = module;
     }
 
-    @Column(name = "com_ex", length = 64, nullable = false, unique = true)
+    @Column(name = "com_ex", length = 64, unique = true)
     private String comEx;
 
     public String getComEx() {
@@ -67,7 +67,7 @@ public class BowlModule {
         this.comEx = comEx;
     }
 
-    @Column(name = "breakable", length = 64, nullable = false, unique = true)
+    @Column(name = "breakable", length = 64, unique = true)
     private String breakable;
 
     public String getBreakable() {
@@ -78,7 +78,7 @@ public class BowlModule {
         this.breakable = breakable;
     }
 
-    @Column(name = "carrier", length = 64, nullable = false, unique = true)
+    @Column(name = "carrier", length = 64, unique = true)
     private String carrier;
 
     public String getCarrier() {
@@ -87,6 +87,28 @@ public class BowlModule {
 
     public void setCarrier(String carrier) {
         this.carrier = carrier;
+    }
+
+    @Column(name = "flash", length = 64, unique = true)
+    private String flash;
+
+    public String getFlash() {
+        return flash;
+    }
+
+    public void setFlash(String flash) {
+        this.flash = flash;
+    }
+
+    @Column(name = "mac", length = 64, unique = true)
+    private String mac;
+
+    public String getMac() {
+        return mac;
+    }
+
+    public void setMac(String mac) {
+        this.mac = mac;
     }
 
     @Column(name = "comment")
