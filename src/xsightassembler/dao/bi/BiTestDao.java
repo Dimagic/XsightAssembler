@@ -1,13 +1,17 @@
 package xsightassembler.dao.bi;
 
 import org.hibernate.Session;
+import org.hibernate.Transaction;
 import xsightassembler.dao.UniversalDao;
 import xsightassembler.models.BiTest;
 import xsightassembler.models.Isduh;
 import xsightassembler.utils.CustomException;
 import xsightassembler.utils.HibernateSessionFactoryUtil;
+import xsightassembler.utils.MsgBox;
 
 import javax.persistence.NoResultException;
+import javax.persistence.PersistenceException;
+import javax.persistence.Query;
 import javax.persistence.TypedQuery;
 import java.sql.Date;
 import java.util.List;
@@ -78,6 +82,22 @@ public class BiTestDao implements UniversalDao {
             session.close();
             return biTest;
         } catch (NoResultException ignored) {}
+        return null;
+    }
+
+    public BiTest getLastRunningTest(Isduh isduh) throws CustomException {
+        try {
+            Session session = HibernateSessionFactoryUtil.getSessionFactory().openSession();
+            String q = String.format("select e from BiTest e where e.unplugDate is null and e.isduh=%s", isduh.getId());
+            System.out.println(q);
+            Query query = session.createQuery(q);
+            BiTest biTest = (BiTest) query.getSingleResult();
+            session.close();
+            return biTest;
+        } catch (NoResultException ignored) {
+        } catch (Exception e) {
+            throw  new CustomException(e);
+        }
         return null;
     }
 }

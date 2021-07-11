@@ -55,4 +55,9 @@ public class BiTestService {
     public BiTest getLastTest(Isduh isduh) throws CustomException {
         return dao.getLastTest(isduh);
     }
+
+    public BiTest getLastRunningTest(Isduh isduh) throws CustomException {
+        return dao.getLastRunningTest(isduh);
+    }
+
 }
