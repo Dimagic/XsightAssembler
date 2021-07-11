@@ -23,7 +23,7 @@ public class IsduhDao implements UniversalDao {
 
     public List<Isduh> findAll() throws CustomException {
         Session session = HibernateSessionFactoryUtil.getSessionFactory().openSession();
-        TypedQuery<Isduh> query = session.createQuery("From Isduh", Isduh.class);
+        TypedQuery<Isduh> query = session.createQuery("Select e from Isduh e", Isduh.class);
         List<Isduh> list = query.getResultList();
         session.close();
         return list;

@@ -25,7 +25,7 @@ public class UpperSensorDao implements UniversalDao {
 
     public List<UpperSensorModule> findAll() throws CustomException{
         Session session = HibernateSessionFactoryUtil.getSessionFactory().openSession();
-        TypedQuery<UpperSensorModule> query = session.createQuery("From UpperSensorModule", UpperSensorModule.class);
+        TypedQuery<UpperSensorModule> query = session.createQuery("Select e from UpperSensorModule e", UpperSensorModule.class);
         List<UpperSensorModule> list = query.getResultList();
         session.close();
         return list;
