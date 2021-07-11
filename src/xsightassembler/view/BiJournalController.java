@@ -3,6 +3,8 @@ package xsightassembler.view;
 import javafx.animation.Interpolator;
 import javafx.animation.RotateTransition;
 import javafx.beans.property.ReadOnlyObjectWrapper;
+import javafx.beans.property.ReadOnlyStringWrapper;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
@@ -22,11 +24,15 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import xsightassembler.MainApp;
 import xsightassembler.models.BiTest;
+import xsightassembler.models.BowlModule;
 import xsightassembler.models.Isduh;
+import xsightassembler.services.BowlModuleService;
 import xsightassembler.services.IsduhService;
 import xsightassembler.services.bi.BiTestService;
 import xsightassembler.utils.*;
 
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -157,6 +163,7 @@ public class BiJournalController {
 
         tRunningTests.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
         tRunningTests.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        tRunningTests.getColumns().forEach(c -> c.setSortable(false));
 
 //        running test table
 
@@ -197,10 +204,6 @@ public class BiJournalController {
             }
         });
 
-//        complete test table
-        tCompleteJournal.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
-        tCompleteJournal.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-
         labNumComplete.setCellValueFactory(cellData -> cellData.getValue().getLabNumProperty());
         typeComplete.setCellValueFactory(cellData -> cellData.getValue().getTypeProperty());
         unplugDateComplete.setCellValueFactory(cellData -> cellData.getValue().getUnplugDateProperty());
@@ -213,7 +216,10 @@ public class BiJournalController {
 
         columnNumberComplete.setCellValueFactory(column -> new ReadOnlyObjectWrapper<Number>(tCompleteJournal.
                 getItems().indexOf(column.getValue()) + 1));
-        columnNumberComplete.setSortable(false);
+
+        //        complete test table
+        tCompleteJournal.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
+        tCompleteJournal.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
 
         filterField.textProperty().addListener((observable, oldValue, newValue) -> filter(newValue));
 
@@ -237,6 +243,8 @@ public class BiJournalController {
             row.setOnMouseClicked(event -> {
                 if (event.getButton() == MouseButton.SECONDARY && !row.isEmpty() && row.getItem().getIsduh() != null) {
                     cm.show(tRunningTests, event.getScreenX(), event.getScreenY());
+                    cm.setHideOnEscape(true);
+                    cm.setAutoHide(true);
                 } else if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2 && (!row.isEmpty())) {
                     BiTestWorker rowData = row.getItem();
                     if (rowData.getIsduh() != null) {
@@ -244,7 +252,10 @@ public class BiJournalController {
                     } else {
                         addBiTest(row.getItem().getLabNum());
                     }
+                } else if (event.getButton() == MouseButton.PRIMARY || event.getButton() == MouseButton.SECONDARY) {
+                    cm.hide();
                 }
+
             });
             return row;
         });
@@ -260,7 +271,6 @@ public class BiJournalController {
         tRunningTests.setItems(runningTestList);
         fillTable();
     }
-
 
     private void fillTable() {
         tRunningTests.getItems().clear();
@@ -394,6 +404,27 @@ public class BiJournalController {
                 return;
             }
 
+            // Check if bowl module present
+            if (isduh.getBowlModule() == null) {
+                IniUtils iniUtils = new IniUtils("strings.ini", isduh.getSystemType());
+                Pattern p = iniUtils.getPattern("pManufBowl");
+                Optional<String> bowlSn = MsgBox.msgInputStringWithValidator("Bowl module not found in assembly.\n" +
+                        "Please enter bowl serial number", p);
+                if (bowlSn.isPresent()) {
+                    BowlModuleService bowlModuleService = new BowlModuleService();
+                    BowlModule bowlModule = bowlModuleService.findBySn(bowlSn.get());
+                    if (bowlModule == null) {
+                        bowlModule = new BowlModule();
+                        bowlModule.setModule(bowlSn.get());
+                        bowlModule.setDate(new Date());
+                        bowlModule.setUser(mainApp.getCurrentUser());
+                        bowlModuleService.save(bowlModule);
+                    }
+                    isduh.setBowlModule(bowlModule);
+                    isduhService.saveOrUpdate(isduh);
+                }
+            }
+
             BiTest lastTest = testService.getLastTest(isduh);
             String stage;
             // if last test found, stage == 1 and passed -> select stage 2
@@ -417,7 +448,7 @@ public class BiJournalController {
             testService.save(biTest);
             getBtwByLabNum(labNum).setBiTest(biTest);
             tRunningTests.refresh();
-        } catch (CustomException e) {
+        } catch (CustomException | IOException e) {
             LOGGER.error("Exception", e);
             MsgBox.msgError(e.getLocalizedMessage());
         }
