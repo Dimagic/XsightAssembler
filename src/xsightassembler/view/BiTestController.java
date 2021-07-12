@@ -175,7 +175,11 @@ public class BiTestController {
     public void setBiTestWorker(BiTestWorker btw) {
         this.btw = btw;
         this.biTest = btw.getBiTest();
-        this.isduhNetName = (biTest.getNetNameProperty().getValue() + settings.getNamePostfix()).trim();
+        if (settings.getNamePostfix() != null && !settings.getNamePostfix().isEmpty()) {
+            this.isduhNetName = biTest.getNetNameProperty().getValue() + settings.getNamePostfix();
+        } else {
+            this.isduhNetName = biTest.getNetNameProperty().getValue();
+        }
         startLogMonitorController();
 
         stage.setTitle(String.format("Lab #%s: %s", btw.getLabNumString().getValue(), isduhNetName));
@@ -466,7 +470,6 @@ public class BiTestController {
                 jssh.executeCommands(commands);
                 jssh.close();
             } catch (CustomException ex) {
-                addToConsole(ex.getMessage());
                 addToConsole("Can't execute command. Will retry after 15 seconds.");
                 for (int i = 0; i < 15; i++) {
                     if (isShutdown) {
