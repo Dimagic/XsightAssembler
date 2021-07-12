@@ -115,7 +115,6 @@ public class SshClient {
 
             out.println("#!/bin/bash");
             for (String command : commands) {
-                System.out.println(command);
                 out.println(command);
                 Thread.sleep(2000);
             }
@@ -140,7 +139,6 @@ public class SshClient {
             String line = "";
             while (!btc.getShutdown()) {
                 while (in.available() > 0) {
-                    System.out.println(in.available());
                     if (btc.getShutdown()) {
                         break;
                     }
@@ -149,7 +147,6 @@ public class SshClient {
                         break;
                     }
                     line = new String(buffer, 0, i);
-                    System.out.println(line);
                     writeBtcConsole(line.trim());
                 }
 
