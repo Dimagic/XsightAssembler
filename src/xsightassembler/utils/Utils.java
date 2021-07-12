@@ -22,6 +22,10 @@ import jcifs.smb.SmbFileOutputStream;
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.controlsfx.validation.Severity;
+import org.controlsfx.validation.ValidationResult;
+import org.controlsfx.validation.ValidationSupport;
+import org.controlsfx.validation.Validator;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
@@ -51,6 +55,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -634,6 +639,35 @@ public class Utils {
         return null;
     }
 
+    public static Pattern getPatternByClassAndField(Class<?> typeModule, TextField field) {
+        try {
+            IniUtils iniUtils = new IniUtils("strings.ini", "system_type");
+            HashMap<String, Pattern> patternMap = iniUtils.getPatternMap();
+
+
+        } catch (IOException e) {
+            LOGGER.error("getPatternMapByName", e);
+            MsgBox.msgException(e);
+        }
+        return null;
+    }
+
+    public static String getSystemTypeByModuleSn(String sn) {
+        try {
+            IniUtils iniUtils = new IniUtils("strings.ini", "system_type");
+            HashMap<String, Pattern> patternMap = iniUtils.getPatternMap();
+            for (String key: patternMap.keySet()) {
+                if (sn.toUpperCase().trim().matches(patternMap.get(key).pattern())) {
+                    return key;
+                }
+            }
+        } catch (IOException e) {
+            LOGGER.error("getPatternMapByName", e);
+            MsgBox.msgException(e);
+        }
+        return null;
+    }
+
     public static Thread getThreadByName(String name){
         for (Thread t: Thread.getAllStackTraces().keySet()){
             if (t.getName().equals(name)) return t;
@@ -742,4 +776,5 @@ public class Utils {
             event.consume();
         });
     }
+
 }

@@ -37,7 +37,8 @@ import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-import static xsightassembler.utils.Utils.*;
+import static xsightassembler.utils.Utils.getAllNodesInParent;
+import static xsightassembler.utils.Utils.setFirstCharToUpper;
 
 public class ModuleAssemblerController implements Initializable {
     Logger LOGGER = LogManager.getLogger(this.getClass().getName());
@@ -49,8 +50,10 @@ public class ModuleAssemblerController implements Initializable {
     private Object currentModule;
     private Class typeModule;
     private GridPane grid;
-    private IniUtils iniUtils;
-    private HashMap<String, Pattern> patternMap;
+    private IniUtils iniUtilsISDU;
+    private IniUtils iniUtilsISDUH;
+    private HashMap<String, Pattern> patternMapISDU;
+    private HashMap<String, Pattern> patternMapISDUH;
     private final ValidationSupport support = new ValidationSupport();
 
 
@@ -70,8 +73,10 @@ public class ModuleAssemblerController implements Initializable {
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         try {
-            iniUtils = new IniUtils("strings.ini", "isdu");
-            patternMap = iniUtils.getPatternMap();
+            iniUtilsISDU = new IniUtils("strings.ini", "isdu");
+            patternMapISDU = iniUtilsISDU.getPatternMap();
+            iniUtilsISDUH = new IniUtils("strings.ini", "isduh");
+            patternMapISDUH = iniUtilsISDUH.getPatternMap();
         } catch (IOException e) {
             LOGGER.error("IniUtils", e);
             MsgBox.msgException(e);
@@ -129,17 +134,13 @@ public class ModuleAssemblerController implements Initializable {
     }
 
     private void addGridWithFields(final Class<?> type) {
-        HashMap<String, Pattern> tmp = getPatternMap("isduh");
         HashMap<String, TextField> fieldMap = getFieldMap();
         Label label;
         Label commentLbl = new Label();
         TextArea commentArea = new TextArea();
         String fieldName;
-        String varName;
         grid = new GridPane();
         int n = 0;
-        String moduleName = type.getName().replace(type.getPackage().getName() + ".", "");
-        System.out.println(moduleName);
         for (Field field : type.getDeclaredFields()) {
             if (field.getType() == String.class) {
                 fieldName = field.getName();
@@ -158,14 +159,10 @@ public class ModuleAssemblerController implements Initializable {
                 label.setText(setFirstCharToUpper(fieldName) + ":");
                 grid.add(label, 0, n);
                 TextField currField = fieldMap.get(field.getName());
-                String key = String.format("%s.%s", moduleName, field.getName());
-                System.out.println(tmp.get(key));
                 try {
                     if (fieldName.equalsIgnoreCase("module")) {
-                        varName = "manuf" + typeModule.getSimpleName();
                         currField.focusedProperty().addListener((arg0, oldValue, newValue) -> {
-                            if (!newValue) {
-                                System.out.println(getSystemTypeByModuleSn(currField.getText()));
+                            if (!newValue && !currField.getText().trim().isEmpty()) {
                                 Object o = Utils.findByInnerModuleSn(typeModule, currField.getText().trim().toUpperCase());
                                 if (o != null) {
                                     fillFields(o);
@@ -173,36 +170,17 @@ public class ModuleAssemblerController implements Initializable {
                             }
                         });
                     } else {
-                        varName = "manuf" + setFirstCharToUpper(fieldName);
                         addColumnTab(fieldName, "get" + setFirstCharToUpper(fieldName));
                     }
                     currField.setId(fieldName);
-//                    textFieldRegexValidator(typeModule, currField);
 
-                    /*
-                     * add search by inner module listener
-                     */
-//                    currField.focusedProperty().addListener((arg0, oldValue, newValue) -> {
-//                        if (!newValue) {
-//                            Object o = Utils.findByInnerModuleSn(typeModule, currField.getText().trim().toUpperCase());
-//                            String sn = Utils.getModuleSnInObject(o);
-//                            if (sn != null && !sn.equalsIgnoreCase(Utils.getModuleSnInObject(currentModule))) {
-//                                currField.setStyle("-fx-background-color: yellow;");
-//                                String msg = String.format("Module with\nSN: %s\nalready use in system\nSN: %s",
-//                                        currField.getText(), sn);
-//                                MsgBox.msgWarning(msg);
-//                                currField.setTooltip(new Tooltip(msg));
-//                            } else {
-//                                currField.setTooltip(null);
-//                                textFieldRegexValidator(typeModule, currField);
-//                            }
-//                        }
-//                    });
                     /*
                      * add regex validators for field
                      */
                     currField.textProperty().addListener((observable, oldValue, newValue) -> {
-                        currField.setText(newValue.toUpperCase().trim());
+                        if (newValue != null) {
+                            currField.setText(newValue.toUpperCase().trim());
+                        }
                     });
                 } catch (Exception e) {
                     LOGGER.error("Exception", e);
@@ -275,6 +253,7 @@ public class ModuleAssemblerController implements Initializable {
     private void fillFields(Object module) {
         currentModule = module;
         System.out.println(currentModule);
+
         try {
             Set<History> tmp = (Set<History>) currentModule.getClass().getMethod("getHistorySet").invoke(currentModule);
             historyBtn.setVisible(tmp.size() > 0);
@@ -283,7 +262,8 @@ public class ModuleAssemblerController implements Initializable {
             for (Node node : getAllNodesInParent(leftPane)) {
                 if (node instanceof TextField) {
                     if (node.getId().equalsIgnoreCase("module")) {
-                        node.setDisable(true);
+//                        node.setDisable(true);
+                        ((TextField) node).setEditable(false);
                     }
                     ((TextField) node).setText(valuesMap.get(node.getId()));
                 }
@@ -321,44 +301,15 @@ public class ModuleAssemblerController implements Initializable {
         historyBtn.setVisible(false);
         tModule.getSelectionModel().clearSelection();
         for (Node node : Utils.getAllNodesInParent(leftPane)) {
-            node.setDisable(false);
-            if (node.isDisable()) {
-                node.setDisable(false);
-            }
             if (node instanceof TextField) {
                 ((TextField) node).setText("");
+                ((TextField) node).setEditable(true);
             }
             if (node instanceof TextArea) {
                 ((TextArea) node).setText("");
             }
         }
-        saveBtn.setDisable(true);
-    }
-
-    /*
-     * fields validator (enable/disable save button)
-     */
-    private void isAllFieldsFill() {
-        boolean isDisable = false;
-        for (Node node : Utils.getAllNodesInParent(leftPane)) {
-            if (node instanceof TextField) {
-                if (((TextField) node).getText().isEmpty()) {
-                    isDisable = true;
-                    break;
-                }
-            }
-        }
-        boolean isValidate = true;
-
-        for (Node node : getAllNodesInParent(leftPane)) {
-            if (node instanceof TextField) {
-                if (node.getStyle().contains("yellow")) {
-                    isValidate = false;
-                    break;
-                }
-            }
-        }
-        saveBtn.setDisable(isDisable || !isValidate);
+//        saveBtn.setDisable(true);
     }
 
     private void saveModule() {
@@ -434,22 +385,44 @@ public class ModuleAssemblerController implements Initializable {
             pName = "p" + Utils.setFirstCharToUpper(currField.getId());
         }
         Validator<String> validator = (control, value) -> {
-            Pattern p = patternMap.get(pName);
+            Pattern p1 = patternMapISDU.get(pName);
+            Pattern p2 = patternMapISDUH.get(pName);
+            Pattern p = Pattern.compile(String.format("%s|%s", p1, p2));
             boolean condition;
             try {
-                if (isModule) {
-                    condition = value.isEmpty() || !value.matches(p.pattern());
-                } else {
-                    condition = !value.isEmpty() && !value.matches(p.pattern());
+                condition = value.isEmpty() || !value.matches(p.pattern());
+                if (!condition) {
+                    condition = isSnAlreadyUse(currField);
                 }
-                currField.setStyle(condition ? "-fx-background-color: yellow;": "-fx-background-color: white;");
+
                 return ValidationResult.fromMessageIf(control, "Incorrect", Severity.ERROR, condition);
             } catch (NullPointerException e) {
                 MsgBox.msgWarning(String.format("RegEx for field %s not found", currField.getId()));
             }
             return null;
         };
+        support.initInitialDecoration();
         support.registerValidator(currField, true, validator);
+    }
+
+    /*
+     * search by inner module
+     */
+    private boolean isSnAlreadyUse(TextField currField) {
+        boolean res = false;
+        Object o = Utils.findByInnerModuleSn(typeModule, currField.getText().trim().toUpperCase());
+        String sn = Utils.getModuleSnInObject(o);
+        if (sn != null && !sn.equalsIgnoreCase(Utils.getModuleSnInObject(currentModule))) {
+//                                    currField.setStyle("-fx-background-color: yellow;");
+            String msg = String.format("Module with\nSN: %s\nalready use in system\nSN: %s",
+                    currField.getText(), sn);
+            MsgBox.msgWarning(msg);
+            currField.setTooltip(new Tooltip(msg));
+            res = true;
+        } else {
+            currField.setTooltip(null);
+        }
+        return res;
     }
 
     public void setCurrentModule(Object currentModule) {

@@ -186,14 +186,20 @@ public class BiJournalController {
             public void updateItem(Double progress, boolean empty) {
                 if (!empty) {
                     try {
+                        BiTestWorker btw = (BiTestWorker) this.getTableRow().getItem();
+                        bar.setStyle("-fx-accent: #0096C9");
                         if (progress == 1.0) {
-                            if (((BiTestWorker) this.getTableRow().getItem()).getStartDate() == null) {
+                            if (btw.getStartDate() == null) {
                                 bar.setStyle("-fx-accent: yellow");
                             } else {
-                                bar.setStyle("-fx-accent: palegreen");
+                                if (btw.isTestFail()) {
+                                    bar.setStyle("-fx-accent: red");
+                                } else {
+                                    bar.setStyle("-fx-accent: palegreen");
+                                }
                             }
-                        } else if (((BiTestWorker) this.getTableRow().getItem()).isTestFail()) {
-                            bar.setStyle("-fx-accent: red");
+                        } else if (btw.isTestFail()) {
+                            bar.setStyle("-fx-accent: orange");
                         }
                     } catch (NullPointerException ignored) {
                     }

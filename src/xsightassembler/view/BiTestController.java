@@ -169,18 +169,14 @@ public class BiTestController {
                 sendCommand(Utils.mapGetKeyByValue(Strings.getIsduhCommandsMap(), commandBox.getValue()))
         );
         addNoteBtn.setOnAction(e -> addBiTestNote());
-        startLogMonitorController();
+
     }
 
     public void setBiTestWorker(BiTestWorker btw) {
         this.btw = btw;
         this.biTest = btw.getBiTest();
-        if (settings.getNamePostfix() != null && !settings.getNamePostfix().isEmpty()) {
-            this.isduhNetName = biTest.getNetNameProperty().getValue() + settings.getNamePostfix();
-        } else {
-            this.isduhNetName = biTest.getNetNameProperty().getValue();
-        }
-
+        this.isduhNetName = (biTest.getNetNameProperty().getValue() + settings.getNamePostfix()).trim();
+        startLogMonitorController();
 
         stage.setTitle(String.format("Lab #%s: %s", btw.getLabNumString().getValue(), isduhNetName));
         isduhLbl.setText(biTest.getIsduh().getSn());
@@ -256,20 +252,26 @@ public class BiTestController {
     }
 
     private void downloadLogs() {
+        if (Utils.isSystemOnline(isduhNetName) != 1){
+            MsgBox.msgInfo(String.format("System %s not available.\n" +
+                    "Please check connection and try again", isduhNetName));
+            return;
+        }
         try {
             SshClient jssh = new SshClient(isduhNetName, settings.getSshUser(),
                     settings.getSshPass(), controller);
             if (jssh.getSession() == null) {
                 return;
             }
-            List<String> fileList = Arrays.asList("messages", "messages.1", "messages.2.gz");
+//            SSHUtils jssh = new SSHUtils(isduhNetName, settings);
+
             String systemFolder = String.format("%s (Lab#%s stage#%s start#%s)", isduhNetName,
                     btw.getLabNumString().getValue(), btw.getStageString().getValue(),
                     btw.getStartDateString().getValue().replace(":", "_"));
             String destFolder = String.format("%s%s\\%s\\", Utils.getSettings().getLogFolder(),
                     Utils.getFormattedDateForFolder(new Date()), systemFolder);
             Files.createDirectories(Paths.get(destFolder));
-            jssh.downloadFiles(Utils.getSettings().getSftpFolder(), fileList, destFolder);
+            jssh.downloadLogFiles(Utils.getSettings().getSftpFolder(), destFolder);
             jssh.close();
             zipLogs(destFolder);
         } catch (IOException e) {
@@ -304,6 +306,11 @@ public class BiTestController {
     }
 
     private void setBiTestStatus(int status) {
+        if (status == 1 && btw.getProgress() != 1.0) {
+            if (!MsgBox.msgConfirm("Test not finished.\nAre you sure?")){
+                return;
+            }
+        }
         if (status == -1 && biTest.getNotes().size() == 0) {
             MsgBox.msgInfo("Please add error description.");
             return;
@@ -455,7 +462,11 @@ public class BiTestController {
             List<String> commands = new ArrayList<String>();
             commands.add("mon_log");
 
-            if (!jssh.executeCommands(commands)) {
+            try {
+                jssh.executeCommands(commands);
+                jssh.close();
+            } catch (CustomException ex) {
+                addToConsole(ex.getMessage());
                 addToConsole("Can't execute command. Will retry after 15 seconds.");
                 for (int i = 0; i < 15; i++) {
                     if (isShutdown) {
@@ -468,8 +479,6 @@ public class BiTestController {
                         MsgBox.msgException(e);
                     }
                 }
-            } else {
-                jssh.close();
             }
         });
         logMonitor.start();

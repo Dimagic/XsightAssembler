@@ -1,18 +1,25 @@
 package xsightassembler.utils;
 
+import com.jcraft.jsch.Channel;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.transformation.FilteredList;
 import javafx.concurrent.Task;
+import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import xsightassembler.MainApp;
 import xsightassembler.models.BiTest;
+import xsightassembler.models.BowlModule;
 import xsightassembler.models.Isduh;
 import xsightassembler.models.LogItem;
+import xsightassembler.services.BowlModuleService;
 import xsightassembler.view.BiJournalController;
 
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.regex.Matcher;
@@ -37,6 +44,9 @@ public class BiTestWorker extends Task<Void> {
     private FilteredList<LogItem> logItems;
     private Settings settings;
     private HashMap<String, List<String>> analyzerMap;
+    private Ssh ssh = null;
+    private boolean isSerialsChecked = false;
+    private int onlineStatus;
 
     public BiTestWorker(Integer labNum, BiJournalController controller) {
         this.labNum = labNum;
@@ -62,22 +72,25 @@ public class BiTestWorker extends Task<Void> {
                         ipName = ipName + settings.getNamePostfix();
                     }
                 }
-                switch (Utils.isSystemOnline(ipName)) {
+                onlineStatus = Utils.isSystemOnline(ipName);
+                switch (onlineStatus) {
                     case 1:
                         updateConnectionStatus("System online");
-                        if (biTest.getStartDate() == null) {
-                            startTime = 0;
-                        } else {
-                            startTime = biTest.getStartDate().getTime();
+
+                        if (!isSerialsChecked) {
+                            isSerialsChecked = checkSerials(ipName);
                         }
+                        startTime = biTest.getStartDate() == null ? 0: biTest.getStartDate().getTime();
                         long startShift = TimeUnit.MINUTES.toMillis(settings.getStartAnalyzeShiftInt());
                         needTime = biTest.getDuration() * 3600000L + startShift;
                         durationTime = System.currentTimeMillis() - startTime;
-                        this.updateProgress(durationTime, needTime);
                         logAnalyzerTask(TimeUnit.MILLISECONDS.toMinutes(durationTime));
+                        this.updateProgress(durationTime, needTime);
                         Thread.sleep(10000);
                         break;
                     case 0:
+                        isSerialsChecked = false;
+                        clearMsg();
                         int n = 10;
                         while (n >= 0) {
                             if (biTest == null) {
@@ -91,6 +104,8 @@ public class BiTestWorker extends Task<Void> {
                         updateConnectionStatus("Sending ping request to " + ipName);
                         break;
                     case -1:
+                        isSerialsChecked = false;
+                        clearMsg();
                         Utils.sendCmd(new String[]{"ipconfig", "/flushdns"});
                         int m = 20;
                         while (m >= 0) {
@@ -143,7 +158,7 @@ public class BiTestWorker extends Task<Void> {
                 Pattern pCounter = Pattern.compile("(?<=Counter:)(.*)(?=$)");
                 Matcher m;
                 Set<Integer> counterSet = new HashSet<>();
-                for (LogItem l: pduResetList){
+                for (LogItem l : pduResetList) {
                     m = pCounter.matcher(l.getFullMsg());
                     if (m.find()) {
                         counterSet.add(Integer.parseInt(m.group(1).trim()));
@@ -177,6 +192,68 @@ public class BiTestWorker extends Task<Void> {
         logAnalyzer.setOnFailed(e -> MsgBox.msgWarning("Log analyzer task failure"));
         exService.execute(logAnalyzer);
         exService.shutdown();
+    }
+
+    private boolean checkSerials(String ipName) {
+//        SSHUtils sshUtils = new SSHUtils(ipName, settings);
+        SshClient sshClient = new SshClient(ipName, settings.getSshUser(), settings.getSshPass(), null);
+
+        BowlModule bowlModule = getIsduh().getBowlModule();
+        String comExSn = bowlModule.getComEx();
+        String comExTmp = Long.valueOf(sshClient.getComExSn()).toString();
+        boolean needChange = (comExSn == null);
+        if (comExSn != null && !comExSn.equals(comExTmp)) {
+            needChange = true;
+            MsgBox.msgInfo(String.format("ComEx serial in assembly differs\n" +
+                    "from the installed board number.\n" +
+                    "It will be changed in assembly.\n" +
+                    "Assembly SN: %s\nBoard SN: %s", comExSn, comExTmp));
+        }
+
+        BowlModuleService bowlModuleService = new BowlModuleService();
+        if (needChange) {
+            writeComExSn(bowlModuleService, bowlModule, comExTmp);
+        }
+        writeMacAndFlash(bowlModuleService, bowlModule, sshClient.getMacAddress(), sshClient.getFlashMemorySn());
+        return true;
+    }
+
+    private void writeMacAndFlash(BowlModuleService service, BowlModule bowlModule, String mac, String flash) {
+        try {
+            System.out.println(mac);
+            if (isBowlAssemblySnPresent(service, bowlModule, "Mac address", mac) ||
+                    isBowlAssemblySnPresent(service, bowlModule, "Flash", flash) ) {
+                return;
+            }
+            bowlModule.setFlash(flash);
+            bowlModule.setMac(mac);
+            service.saveOrUpdate(bowlModule);
+        } catch (CustomException e) {
+            LOGGER.error("Save bowl", e);
+            MsgBox.msgException(e);
+        }
+
+    }
+
+    private void writeComExSn(BowlModuleService service, BowlModule bowlModule, String sn) {
+        try {
+            if (!isBowlAssemblySnPresent(service, bowlModule, "ComEx", sn)) {
+                bowlModule.setComEx(sn);
+                service.saveOrUpdate(bowlModule);
+            }
+        } catch (CustomException e) {
+            LOGGER.error("Save bowl", e);
+            MsgBox.msgException(e);
+        }
+    }
+
+    private boolean isBowlAssemblySnPresent(BowlModuleService service, BowlModule bowlModule, String name, String sn) throws CustomException {
+        BowlModule tmp = service.findByInnerModuleSn(sn);
+        if (tmp != null && !tmp.getId().equals(bowlModule.getId())) {
+            MsgBox.msgWarning(String.format("%s: %s\nalready use on bowl module SN: %s", name, sn, tmp.getModule()));
+            return true;
+        }
+        return false;
     }
 
     private void clearMsg() {
@@ -224,6 +301,7 @@ public class BiTestWorker extends Task<Void> {
 
 
     public void setBiTest(BiTest biTest) {
+        this.isSerialsChecked = false;
         this.biTest = biTest;
         if (biTest != null && queue.isEmpty()) {
             queue.add(biTest);
@@ -273,7 +351,8 @@ public class BiTestWorker extends Task<Void> {
                 return new SimpleStringProperty(biTest.getNetNameProperty().getValue()
                         + settings.getNamePostfix().trim());
             }
-        } catch (NullPointerException ignored){}
+        } catch (NullPointerException ignored) {
+        }
         return biTest.getNetNameProperty();
     }
 
@@ -320,7 +399,17 @@ public class BiTestWorker extends Task<Void> {
         return Utils.stringToProperty(biTest.getUserLogin());
     }
 
+    public boolean isOnline() {
+        return onlineStatus == 1;
+    }
+
     public void setMainApp(MainApp mainApp) {
         this.mainApp = mainApp;
+    }
+
+    private static class Ssh extends AsshClient {
+        public Ssh(String hostname, String username, String password) {
+            super(hostname, username, password);
+        }
     }
 }

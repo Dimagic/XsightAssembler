@@ -33,7 +33,7 @@ abstract class AsshClient {
         return session;
     }
 
-    private Channel getChannel() {
+    public Channel getChannel() {
         if (channel == null || !channel.isConnected()) {
             try {
                 channel = (ChannelShell) getSession().openChannel("shell");
@@ -76,7 +76,7 @@ abstract class AsshClient {
             if (channel == null) {
                 return null;
             }
-            sendCommands(channel, commands);
+//            sendCommands(channel, commands);
             return channel;
         } catch (Exception e) {
             LOGGER.error("Exception", e);

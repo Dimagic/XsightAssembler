@@ -2,6 +2,7 @@ package xsightassembler.view;
 
 import javafx.animation.Interpolator;
 import javafx.animation.RotateTransition;
+import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
@@ -18,6 +19,7 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.HBox;
 import javafx.stage.Stage;
+import javafx.util.Callback;
 import javafx.util.Duration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -26,6 +28,8 @@ import xsightassembler.models.Isduh;
 import xsightassembler.models.MailAddress;
 import xsightassembler.services.IsduhService;
 import xsightassembler.services.MailAddressService;
+import xsightassembler.services.bi.BiNoteServise;
+import xsightassembler.services.bi.BiTestService;
 import xsightassembler.utils.*;
 
 import java.lang.reflect.InvocationTargetException;
@@ -61,7 +65,7 @@ public class AssemblyJournalController {
     private ImageView refreshImg;
     @FXML
     private TextField filterField;
-//    @FXML
+    //    @FXML
 //    private Button newBtn;
     @FXML
     private Button allInOneBtn;
@@ -103,16 +107,47 @@ public class AssemblyJournalController {
         tIsduh.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         tIsduh.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
 
+
         tIsduh.setRowFactory(this::rowFactoryTab);
-        addColumnTab("Date",null, "getFormattedDate");
-        addColumnTab("Status",null, "getAssemblyStatusString");
+        TableColumn numberCol = new TableColumn("#");
+        numberCol.setMinWidth(20);
+        numberCol.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<Isduh, Isduh>, ObservableValue<Isduh>>() {
+            @Override
+            public ObservableValue<Isduh> call(TableColumn.CellDataFeatures<Isduh, Isduh> p) {
+                return new ReadOnlyObjectWrapper(p.getValue());
+            }
+        });
+
+        numberCol.setCellFactory(new Callback<TableColumn<Isduh, Isduh>, TableCell<Isduh, Isduh>>() {
+            @Override
+            public TableCell<Isduh, Isduh> call(TableColumn<Isduh, Isduh> param) {
+                return new TableCell<Isduh, Isduh>() {
+                    @Override
+                    protected void updateItem(Isduh item, boolean empty) {
+                        super.updateItem(item, empty);
+
+                        if (this.getTableRow() != null && item != null) {
+                            setText(this.getTableRow().getIndex() + 1 + "");
+                        } else {
+                            setText("");
+                        }
+                    }
+                };
+            }
+        });
+        numberCol.setSortable(false);
+
+        numberCol.setSortable(false);
+        tIsduh.getColumns().add(numberCol);
+        addColumnTab("Date", null, "getFormattedDate");
+        addColumnTab("Status", null, "getAssemblyStatusString");
         addColumnTab("Type", null, "getTypeString");
-        addColumnTab("SN","XSTXT0010000500", "getSn");
-        addColumnTab("Azimut","XSTXT0020000213", "getAzimutModuleSn");
-        addColumnTab("Bowl","XSTXT0030000500", "getBowlModuleSn");
-        addColumnTab("Camera","XSTXT0020000394", "getCameraModuleSn");
-        addColumnTab("Fan","XSTXT8020000268", "getFanModuleSn");
-        addColumnTab("Nose", "XSTXT0020000393","getNoseModuleSn");
+        addColumnTab("SN", "XSTXT0010000500", "getSn");
+        addColumnTab("Azimut", "XSTXT0020000213", "getAzimutModuleSn");
+        addColumnTab("Bowl", "XSTXT0030000500", "getBowlModuleSn");
+        addColumnTab("Camera", "XSTXT0020000394", "getCameraModuleSn");
+        addColumnTab("Fan", "XSTXT8020000268", "getFanModuleSn");
+        addColumnTab("Nose", "XSTXT0020000393", "getNoseModuleSn");
         addColumnTab("Radar", "XSTXT0070000029", "getRadarModuleSn");
         addColumnTab("Upper sensor", "XSTXT0020000500", "getUpperSensorModuleSn");
         addColumnTab("Pallet", null, "getPalletSn");
@@ -218,13 +253,13 @@ public class AssemblyJournalController {
                     java.sql.Date.valueOf(dateTo.getValue())));
 
             String filter = filterField.getText().toUpperCase().trim();
-            if (filter.isEmpty()){
+            if (filter.isEmpty()) {
                 filteredList = new FilteredList<>(allList, t -> true);
             } else {
                 filteredList = getFilteredByFieldList(filter);
             }
 
-            if (status == -1){
+            if (status == -1) {
                 tIsduh.setItems(filteredList);
             } else {
                 tIsduh.setItems(getFilteredByStatus(status));
@@ -306,21 +341,35 @@ public class AssemblyJournalController {
         if (!MsgBox.msgConfirm("Delete selected assembly? Are you sure?")) {
             return;
         }
-        String pass = MsgBox.msgInputPassword("Enter password for delete");
-        if (pass != null) {
-            if (pass.equals("Xsight2020")) {
-                try {
+        try {
+            BiTestService testService = new BiTestService();
+            if (testService.getLastRunningTest(tIsduh.getSelectionModel().getSelectedItem()) != null) {
+                MsgBox.msgInfo(String.format("Can't delete the system that is in test lab"));
+                return;
+            }
+            String pass = MsgBox.msgInputPassword("Enter password for delete");
+            if (pass != null) {
+                if (pass.equals("Xsight2020")) {
+                    BiNoteServise noteServise = new BiNoteServise();
                     for (Isduh assembly : tIsduh.getSelectionModel().getSelectedItems()) {
+                        assembly.getTestSet().forEach(c -> c.getNotes().forEach(n -> {
+                            try {
+                                noteServise.delete(n);
+                            } catch (CustomException e) {
+                                e.printStackTrace();
+                            }
+                        }));
                         service.delete(assembly);
                     }
                     fillTable();
                     MsgBox.msgInfo("Delete complete");
-                } catch (CustomException ex) {
-                    MsgBox.msgWarning("Delete failure");
+
+                } else {
+                    MsgBox.msgWarning("Incorrect password");
                 }
-            } else {
-                MsgBox.msgWarning("Incorrect password");
             }
+        } catch (CustomException ex) {
+            MsgBox.msgWarning("Delete failure");
         }
     }
 

@@ -12,10 +12,7 @@ import org.json.simple.JSONObject;
 import xsightassembler.MainApp;
 import xsightassembler.models.*;
 import xsightassembler.services.*;
-import xsightassembler.utils.CustomException;
-import xsightassembler.utils.IniUtils;
-import xsightassembler.utils.MsgBox;
-import xsightassembler.utils.Utils;
+import xsightassembler.utils.*;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -341,7 +338,7 @@ public class AllInOneAssemblerController {
 
     private void addFieldValidator(TextField field, String pName) {
         field.textProperty().addListener((observable, oldValue, newValue) -> {
-            if (field.isVisible()) {
+            if (field.isVisible() && newValue != null) {
                 field.setText(newValue.trim().toUpperCase());
                 if (patternMap.isEmpty()) {
                     field.setText(newValue.trim().toUpperCase());
@@ -398,13 +395,20 @@ public class AllInOneAssemblerController {
             if (isduhSystemSn.getStyle().contains("yellow")) {
                 clearAndBlockField(isduhFields, true);
             } else {
+                try {
+                    isduh = isduhService.findBySn(sn);
+                } catch (CustomException e) {
+                    LOGGER.error("exception", e);
+                    MsgBox.msgException(e);
+                }
                 clearAndBlockField(isduhFields, false);
-//                disableFieldsByType(sn);
                 if (isduh == null) {
                     isduh = new Isduh();
                     isduh.setSn(sn);
                     isduh.setUser(mainApp.getCurrentUser());
                     disableFieldsByType();
+                } else {
+                    setIsduhSystem(isduh);
                 }
             }
         } else {
@@ -529,6 +533,7 @@ public class AllInOneAssemblerController {
 
     public void setIsduhSystem(Isduh isduh) {
         this.isduh = isduh;
+        stage.setTitle("Assembly system SN: " + isduh.getSn());
         disableFieldsByType();
         // getting patterns by system type
         isduhPane.setText(isduh.getTypeString().toUpperCase() + " system");
@@ -633,7 +638,6 @@ public class AllInOneAssemblerController {
     private void setToltipAndPromptToField(TextField field, String val) {
         field.setTooltip(new Tooltip(manufNumberMap.get(val)));
         field.setPromptText(manufNumberMap.get(val));
-
     }
 
 
@@ -665,7 +669,7 @@ public class AllInOneAssemblerController {
     private boolean isDoubleDataPresent() {
         HashMap<String, Integer> dataMap = new HashMap<>();
         for (Node node : getAllNodesInParent(isduhPane)) {
-            if (node instanceof TextField && node.isVisible()) {
+            if (node instanceof TextField && node.isVisible() && !((TextField) node).getText().isEmpty()) {
                 String data = ((TextField) node).getText().trim();
                 if (!data.isEmpty()) {
                     int count = dataMap.get(data) == null ? 1 : dataMap.get(data) + 1;
@@ -685,6 +689,7 @@ public class AllInOneAssemblerController {
 
     public void setStage(Stage stage) {
         this.stage = stage;
+        stage.setTitle("New system assembly");
     }
 
     public void setMainApp(MainApp mainApp) {
