@@ -245,7 +245,28 @@ public class BiJournalController {
             mi2.setOnAction((event) -> {
                 row.getItem().forceLogAnalyzerTask();
             });
-            cm.getItems().addAll(mi1, mi2);
+            MenuItem mi3 = new MenuItem("Delete item");
+            mi3.setOnAction((event) -> {
+                BiTestWorker btw = row.getItem();
+                if (btw.getBiTest() != null) {
+                    if (btw.getStartDate() != null) {
+                        MsgBox.msgInfo("You can't delete started test");
+                    } else {
+                        if (MsgBox.msgConfirm(String.format("Delete system %s from lab station?",
+                                btw.getBiTest().getNetNameProperty().getValue()))) {
+                            try {
+                                testService.delete(btw.getBiTest());
+                                fillTable();
+                            } catch (CustomException e) {
+                                LOGGER.error("exception", e);
+                                MsgBox.msgException(e);
+                            }
+                        }
+                    }
+                }
+            });
+
+            cm.getItems().addAll(mi1, mi2, mi3);
             row.setOnMouseClicked(event -> {
                 if (event.getButton() == MouseButton.SECONDARY && !row.isEmpty() && row.getItem().getIsduh() != null) {
                     cm.show(tRunningTests, event.getScreenX(), event.getScreenY());
@@ -278,7 +299,7 @@ public class BiJournalController {
         fillTable();
     }
 
-    private void fillTable() {
+    public void fillTable() {
         tRunningTests.getItems().clear();
         try {
             BiTest biTest;
