@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public interface MsgBox {
     Image favicon = new Image(Objects.requireNonNull(
@@ -271,6 +272,46 @@ public interface MsgBox {
         dialog.setSelectedItem(selectedItem);
         Optional<String> result = dialog.showAndWait();
         return result.orElse(null);
+    }
+
+    static Optional<String> msgInputStringWithValidator(String msg, Pattern pattern) {
+        Dialog<String> dialog = new Dialog<>();
+        dialog.setTitle("Input");
+        dialog.setHeaderText(msg);
+        Stage stage = (Stage) dialog.getDialogPane().getScene().getWindow();
+        stage.getIcons().add(favicon);
+        ButtonType confirmButtonType = new ButtonType("Ok", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(confirmButtonType);
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(20, 150, 10, 10));
+
+        TextField string1 = new TextField();
+        string1.setPromptText(msg);
+
+        grid.add(new Label("Input:"), 0, 0);
+        grid.add(string1, 1, 0);
+
+        Node confirmButton = dialog.getDialogPane().lookupButton(confirmButtonType);
+        confirmButton.setDisable(true);
+
+        string1.textProperty().addListener((observable, oldValue, newValue) -> {
+            Matcher m = pattern.matcher(newValue.trim());
+            confirmButton.setDisable(newValue.trim().isEmpty() || !m.find());
+        });
+
+        dialog.getDialogPane().setContent(grid);
+        Platform.runLater(string1::requestFocus);
+
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == confirmButtonType) {
+                return string1.getText().trim();
+            }
+            return null;
+        });
+
+        return dialog.showAndWait();
     }
 
     static Optional<String> msgInputStringWithConfirm(String msg) {
