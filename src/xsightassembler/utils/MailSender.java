@@ -27,16 +27,19 @@ public class MailSender {
     private final Properties prop;
     private final String username;
     private final String password;
+    private final Settings settings;
 
     public MailSender(Settings settings) {
+        this.settings = settings;
         this.prop = new Properties();
         prop.put("mail.smtp.host", settings.getMailServer());
         prop.put("mail.smtp.port", settings.getMailPort());
         prop.put("mail.smtp.auth", settings.isSslAuth());
-        prop.put("mail.smtp.socketFactory.port", "465");
+        prop.put("mail.smtp.socketFactory.port", settings.getMailPort());
         prop.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
         username = settings.getMailUser();
         password = settings.getMailPass();
+
     }
 
     public void sendFile(String subject, String textMsg, ObservableList<MailAddress> addressList, File f) {
@@ -46,6 +49,7 @@ public class MailSender {
                         return new PasswordAuthentication(username, password);
                     }
                 });
+        session.setDebug(true);
 
         try {
             Message message = new MimeMessage(session);

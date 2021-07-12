@@ -47,9 +47,9 @@ public class BiNote {
         this.note = note;
     }
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.REMOVE, optional = false)
+//    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "bi_test_id", nullable = false)
-    @OnDelete(action = OnDeleteAction.CASCADE)
     private BiTest biTest;
 
     public BiTest getBiTest() {

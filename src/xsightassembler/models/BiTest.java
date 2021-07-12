@@ -148,7 +148,8 @@ public class BiTest {
         this.icr = icr;
     }
 
-    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.REMOVE, orphanRemoval = true)
+//    @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<BiNote> notes;
 
     public Set<BiNote> getNotes() {
@@ -248,5 +249,4 @@ public class BiTest {
         }
         return new SimpleStringProperty(comments.toString());
     }
-
 }
