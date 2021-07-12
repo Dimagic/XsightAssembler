@@ -78,7 +78,7 @@ public class RootController {
 
         MenuItem menuRefresh = new MenuItem("Refresh test journal");
         menuRefresh.setOnAction(e -> {
-            mainApp.getBiJournalController().refreshJournal();
+            mainApp.getBiJournalController().fillTable();
         });
 
         menu.getItems().addAll(menuLog, menuAssembler, menuRefresh);
