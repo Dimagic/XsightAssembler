@@ -3,8 +3,6 @@ package xsightassembler.view;
 import javafx.animation.Interpolator;
 import javafx.animation.RotateTransition;
 import javafx.beans.property.ReadOnlyObjectWrapper;
-import javafx.beans.property.ReadOnlyStringWrapper;
-import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
@@ -32,7 +30,6 @@ import xsightassembler.services.bi.BiTestService;
 import xsightassembler.utils.*;
 
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -48,10 +45,8 @@ public class BiJournalController {
     private MainApp mainApp;
     private Stage stage;
     private boolean isShutdown;
-    private ObservableList<BiTestWorker> runningTestList = FXCollections.observableArrayList();
-    private ObservableList<BiTest> completeTestList = FXCollections.observableArrayList();
+    private final ObservableList<BiTestWorker> runningTestList = FXCollections.observableArrayList();
     private FilteredList<BiTest> completeFilteredList;
-    private Comparator<BiTestWorker> comparator = Comparator.comparingInt(BiTestWorker::getLabNum);
 
     private BiTestWorker btw;
 
@@ -177,7 +172,7 @@ public class BiJournalController {
         startDateColumn.setCellValueFactory(cellData -> cellData.getValue().getStartDateString());
         userColumn.setCellValueFactory(cellDate -> cellDate.getValue().getUserLogin());
 
-        stateColumn.setCellValueFactory(new PropertyValueFactory<BiTestWorker, String>("message"));
+        stateColumn.setCellValueFactory(new PropertyValueFactory<>("message"));
 
         progressColumn.setCellValueFactory(new PropertyValueFactory<>("progress"));
         progressColumn.setCellFactory(param -> new TableCell<BiTestWorker, Double>() {
@@ -220,7 +215,7 @@ public class BiJournalController {
 
         userComplete.setCellValueFactory(cellDate -> cellDate.getValue().getUserProperty());
 
-        columnNumberComplete.setCellValueFactory(column -> new ReadOnlyObjectWrapper<Number>(tCompleteJournal.
+        columnNumberComplete.setCellValueFactory(column -> new ReadOnlyObjectWrapper<>(tCompleteJournal.
                 getItems().indexOf(column.getValue()) + 1));
 
         //        complete test table
@@ -234,16 +229,45 @@ public class BiJournalController {
             btw = newSelection;
         });
 
+        tCompleteJournal.setRowFactory(tv -> {
+            TableRow<BiTest> row = new TableRow<>();
+            ContextMenu cm = new ContextMenu();
+            MenuItem mi1 = new MenuItem("Add to lab station");
+            mi1.setOnAction((event) -> {
+                List<String> labNums = new ArrayList<>();
+                tRunningTests.getItems().forEach(e -> labNums.add(Integer.toString(e.getLabNum())));
+                String res = MsgBox.msgChoice("Select lab number", "", labNums);
+                if (res != null) {
+                    addBiTest(Integer.parseInt(res), row.getItem().getIsduh());
+                }
+            });
+            cm.getItems().addAll(mi1);
+            row.setOnMouseClicked(event -> {
+                if (event.getButton() == MouseButton.SECONDARY && !row.isEmpty()) {
+                    cm.show(tRunningTests, event.getScreenX(), event.getScreenY());
+                    cm.setHideOnEscape(true);
+                    cm.setAutoHide(true);
+                } else if (event.getButton() == MouseButton.PRIMARY || event.getButton() == MouseButton.SECONDARY) {
+                    cm.hide();
+                }
+            });
+            return row;
+        });
+
         tRunningTests.setRowFactory(tv -> {
             TableRow<BiTestWorker> row = new TableRow<>();
             ContextMenu cm = new ContextMenu();
             MenuItem mi1 = new MenuItem("Log analyzer");
             mi1.setOnAction((event) -> {
-                mainApp.showLogView(row.getItem());
+                if (row.getItem().isOnline()) {
+                    mainApp.showLogView(row.getItem());
+                }
             });
             MenuItem mi2 = new MenuItem("Update logs");
             mi2.setOnAction((event) -> {
-                row.getItem().forceLogAnalyzerTask();
+                if (row.getItem().isOnline()) {
+                    row.getItem().forceLogAnalyzerTask();
+                }
             });
             MenuItem mi3 = new MenuItem("Delete item");
             mi3.setOnAction((event) -> {
@@ -256,7 +280,8 @@ public class BiJournalController {
                                 btw.getBiTest().getNetNameProperty().getValue()))) {
                             try {
                                 testService.delete(btw.getBiTest());
-                                fillTable();
+                                btw.setBiTest(null);
+                                refreshJournal();
                             } catch (CustomException e) {
                                 LOGGER.error("exception", e);
                                 MsgBox.msgException(e);
@@ -291,6 +316,8 @@ public class BiJournalController {
                 (ov, t, t1) -> {
                     if (t1 == journalTab) {
                         fillCompleteTable();
+                    } else {
+                        refreshJournal();
                     }
                 }
         );
@@ -305,8 +332,7 @@ public class BiJournalController {
             BiTest biTest;
             BiTestWorker biTestWorker;
             for (int i = 1; i <= Utils.getSettings().getLabCountInt(); i++) {
-                biTestWorker = new BiTestWorker(i, this);
-                biTestWorker.setMainApp(mainApp);
+                biTestWorker = getBtwByLabNum(i);
                 biTest = testService.getRunningTestByLabNum(i);
                 if (biTest != null) {
                     biTestWorker.setBiTest(biTest);
@@ -318,28 +344,30 @@ public class BiJournalController {
             MsgBox.msgError(e.getLocalizedMessage());
         }
         runningTestList.forEach(e -> {
-            Thread t = new Thread(e);
-            t.setName(e.getLabNumString().getValue());
-            t.setDaemon(true);
-            t.start();
+            if (getThreadByName(e.getLabNumString().getValue()) == null) {
+                Thread t = new Thread(e);
+                t.setName(e.getLabNumString().getValue());
+                t.setDaemon(true);
+                t.start();
+            }
         });
         tRunningTests.setItems(runningTestList);
         refreshJournal();
     }
 
     public void refreshJournal() {
-        runningTestList.forEach(e -> {
-            if (e.getBiTest() != null && e.getBiTest().getUnplugDate() != null) {
-                e.setBiTest(null);
-            }
-        });
+//        runningTestList.forEach(e -> {
+//            if (e.getBiTest() != null && e.getBiTest().getUnplugDate() != null) {
+//                e.setBiTest(null);
+//            }
+//        });
         tRunningTests.refresh();
     }
 
     @FXML
     private void fillCompleteTable() {
         try {
-            completeTestList = FXCollections.observableArrayList(testService.getCompleteTestBetweenDates(
+            ObservableList<BiTest> completeTestList = FXCollections.observableArrayList(testService.getCompleteTestBetweenDates(
                     java.sql.Date.valueOf(dateFrom.getValue()),
                     java.sql.Date.valueOf(dateTo.getValue())
             ));
@@ -427,6 +455,15 @@ public class BiJournalController {
                     isduhService.save(isduh);
                 }
             }
+            addBiTest(labNum, isduh);
+        } catch (CustomException e) {
+            LOGGER.error("Exception", e);
+            MsgBox.msgError(e.getLocalizedMessage());
+        }
+    }
+
+    private void addBiTest(int labNum, Isduh isduh) {
+        try {
             if (!checkPlugIsduh(isduh, labNum)) {
                 return;
             }
@@ -479,7 +516,6 @@ public class BiJournalController {
             LOGGER.error("Exception", e);
             MsgBox.msgError(e.getLocalizedMessage());
         }
-
     }
 
     private boolean checkPlugIsduh(Isduh isduh, int labNum) {
@@ -594,6 +630,15 @@ public class BiJournalController {
     private BiTestWorker getBtwByLabNum(int labNum) {
         for (BiTestWorker btw : runningTestList) {
             if (btw.getLabNum() == labNum) return btw;
+        }
+        BiTestWorker btw = new BiTestWorker(labNum, this);
+        btw.setMainApp(mainApp);
+        return btw;
+    }
+
+    private Thread getThreadByName(String threadName) {
+        for (Thread t : Thread.getAllStackTraces().keySet()) {
+            if (t.getName().equals(threadName)) return t;
         }
         return null;
     }
