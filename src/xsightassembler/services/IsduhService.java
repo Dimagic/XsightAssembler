@@ -2,6 +2,7 @@ package xsightassembler.services;
 
 import org.json.simple.JSONObject;
 import xsightassembler.dao.IsduhDao;
+import xsightassembler.models.History;
 import xsightassembler.models.Isduh;
 import xsightassembler.models.Pallet;
 import xsightassembler.utils.CustomException;
@@ -36,6 +37,10 @@ public class IsduhService {
 
     public boolean saveOrUpdate(Object module) throws CustomException {
         return dao.saveOrUpdate(module);
+    }
+
+    public boolean saveOrUpdate(List<Object> objList) throws CustomException {
+        return dao.saveOrUpdate(objList);
     }
 
     public Isduh findBySn(String sn) throws CustomException {

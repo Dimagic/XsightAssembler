@@ -98,6 +98,26 @@ public interface UniversalDao {
         }
     }
 
+    default boolean saveOrUpdate(List<Object> objList) throws CustomException {
+        Session session = HibernateSessionFactoryUtil.getSessionFactory().openSession();
+        Transaction tx1 = session.beginTransaction();
+        try {
+            for (Object obj: objList) {
+                session.saveOrUpdate(obj);
+            }
+            tx1.commit();
+            session.close();
+            return true;
+        } catch (Exception e) {
+            tx1.rollback();
+            session.close();
+            if (e.getCause() instanceof PSQLException){
+                throw new CustomException(e.getCause().getMessage());
+            }
+            throw new CustomException(e);
+        }
+    }
+
     default boolean delete(Object obj) throws CustomException {
         Session session = HibernateSessionFactoryUtil.getSessionFactory().openSession();
         Transaction tx1 = session.beginTransaction();
