@@ -1,5 +1,6 @@
 package xsightassembler.models;
 
+
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 import org.hibernate.annotations.OnDelete;
@@ -140,7 +141,7 @@ public class BowlModule {
     }
 
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<History> historySet;
+    private Set<History> historySet = new HashSet<>();
 
     public Set<History> getHistorySet() {
         return historySet;
@@ -160,6 +161,8 @@ public class BowlModule {
         HashMap<String, String> map = new HashMap<>();
         map.put("module", getModule());
         map.put("comEx", getComEx());
+        map.put("mac", getMac());
+        map.put("flash", getFlash());
         map.put("carrier", getCarrier());
         map.put("breakable", getBreakable());
         map.put("comment", getComment());
