@@ -134,7 +134,7 @@ public class ModuleAssemblerController implements Initializable {
     }
 
     private void addGridWithFields(final Class<?> type) {
-        HashMap<String, TextField> fieldMap = getFieldMap();
+//        HashMap<String, TextField> fieldMap = getFieldMap();
         Label label;
         Label commentLbl = new Label();
         TextArea commentArea = new TextArea();
@@ -151,14 +151,16 @@ public class ModuleAssemblerController implements Initializable {
                     commentArea.setId(fieldName);
                     commentArea.setPrefWidth(180);
                     commentArea.setPrefHeight(100);
-                    commentArea.setText(fieldMap.get(fieldName).getText());
+//                    commentArea.setText(fieldMap.get(fieldName).getText());
                     continue;
                 }
                 label = new Label();
                 label.setStyle("-fx-font-weight: bold");
                 label.setText(setFirstCharToUpper(fieldName) + ":");
                 grid.add(label, 0, n);
-                TextField currField = fieldMap.get(field.getName());
+//                TextField currField = fieldMap.get(field.getName());
+                TextField currField = new TextField();
+                currField.setId(field.getName());
                 try {
                     if (fieldName.equalsIgnoreCase("module")) {
                         currField.focusedProperty().addListener((arg0, oldValue, newValue) -> {
@@ -223,6 +225,8 @@ public class ModuleAssemblerController implements Initializable {
         TextField module = new TextField();
         TextField comment = new TextField();
         TextField comEx = new TextField();
+        TextField mac = new TextField();
+        TextField flash = new TextField();
         TextField breakable = new TextField();
         TextField carrier = new TextField();
         TextField cameraHouse = new TextField();
@@ -235,6 +239,8 @@ public class ModuleAssemblerController implements Initializable {
         fieldMap.put("module", module);
         fieldMap.put("comment", comment);
         fieldMap.put("comEx", comEx);
+        fieldMap.put("mac", mac);
+        fieldMap.put("flash", flash);
         fieldMap.put("breakable", breakable);
         fieldMap.put("carrier", carrier);
         fieldMap.put("cameraHouse", cameraHouse);
@@ -330,6 +336,7 @@ public class ModuleAssemblerController implements Initializable {
             for (Node node : getAllNodesInParent(leftPane)) {
                 if (node instanceof TextField) {
                     String value = ((TextField) node).getText().trim().isEmpty() ? null : ((TextField) node).getText().trim();
+//                    Utils.addHistoryIfChange(module, (TextField) node, mainApp.getCurrentUser());
                     /*
                      * add history to module
                      */

@@ -1,12 +1,10 @@
 package xsightassembler.utils;
 
-import com.jcraft.jsch.Channel;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.transformation.FilteredList;
 import javafx.concurrent.Task;
-import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import xsightassembler.MainApp;
@@ -17,9 +15,6 @@ import xsightassembler.models.LogItem;
 import xsightassembler.services.BowlModuleService;
 import xsightassembler.view.BiJournalController;
 
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.regex.Matcher;

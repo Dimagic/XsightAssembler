@@ -89,6 +89,14 @@ public class CameraModule {
         this.cameraHouse = cameraHouse;
     }
 
+    public String getHouse() {
+        return getCameraHouse();
+    }
+
+    public void setHouse(String cameraHouse) {
+        setCameraHouse(cameraHouse);
+    }
+
     @Column(name = "comment")
     private String comment;
 

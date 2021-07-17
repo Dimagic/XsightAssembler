@@ -31,7 +31,9 @@ import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 import sun.misc.BASE64Decoder;
 import sun.misc.BASE64Encoder;
+import xsightassembler.models.History;
 import xsightassembler.models.LogItem;
+import xsightassembler.models.User;
 import xsightassembler.services.*;
 
 import javax.crypto.*;
@@ -358,10 +360,6 @@ public class Utils {
                     return o;
                 }
             }
-//            Class<?> service = Class.forName("xsightassembler.services." + typeModule.getSimpleName() + "Service");
-//            Method method = service.getMethod("findByInnerModuleSn", String.class);
-//            Object o = method.invoke(service.newInstance(), sn);
-//            return o;
         } catch (Exception e) {
             LOGGER.error("Exception", e);
             MsgBox.msgWarning(e.getLocalizedMessage());

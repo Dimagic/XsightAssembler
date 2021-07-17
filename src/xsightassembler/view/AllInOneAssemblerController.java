@@ -12,10 +12,15 @@ import org.json.simple.JSONObject;
 import xsightassembler.MainApp;
 import xsightassembler.models.*;
 import xsightassembler.services.*;
-import xsightassembler.utils.*;
+import xsightassembler.utils.CustomException;
+import xsightassembler.utils.IniUtils;
+import xsightassembler.utils.MsgBox;
+import xsightassembler.utils.Utils;
 
 import java.io.IOException;
-import java.util.HashMap;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -23,6 +28,7 @@ import static xsightassembler.utils.Utils.getAllNodesInParent;
 
 public class AllInOneAssemblerController {
     Logger LOGGER = LogManager.getLogger(this.getClass().getName());
+    private Method method;
     private MainApp mainApp;
     private Stage stage;
     private AssemblyJournalController assemblyJournalController;
@@ -37,6 +43,8 @@ public class AllInOneAssemblerController {
     private HashMap<String, Pattern> patternMap = new HashMap<>();
     private HashMap<String, Pattern> pSysTypeMap = new HashMap<>();
     private HashMap<String, String> manufNumberMap = new HashMap<>();
+    private Set<TextField> fieldHistorySet = new HashSet<>();
+    private Map<Object, TextField[]> moduleFieldMap = new HashMap<>();
 
     private TextField[] isduhFields;
     private TextField[] fanFields;
@@ -72,7 +80,7 @@ public class AllInOneAssemblerController {
     @FXML
     private TextField fanModuleSn;
     @FXML
-    private TextField upperModuleSn;
+    private TextField upperSensorModuleSn;
     @FXML
     private TextField coolerSn;
     @FXML
@@ -107,6 +115,8 @@ public class AllInOneAssemblerController {
     private Label fanLbl;
     @FXML
     private Button saveBtn;
+    @FXML
+    private Button historyBtn;
 
 
     @FXML
@@ -122,14 +132,13 @@ public class AllInOneAssemblerController {
         }
 
         isduhPane.setText("Undefine type system");
-        isduhFields = new TextField[]{isduhSystemSn, fanModuleSn, upperModuleSn, bowlModuleSn};
+        isduhFields = new TextField[]{isduhSystemSn, fanModuleSn, upperSensorModuleSn, bowlModuleSn};
         fanFields = new TextField[]{fanModuleSn};
-        upperFields = new TextField[]{upperModuleSn, coolerSn, radarModuleSn,
+        upperFields = new TextField[]{upperSensorModuleSn, coolerSn, radarModuleSn,
                 noseModuleSn, azimutModuleSn, cameraModuleSn};
         azimutFields = new TextField[]{azimutModuleSn, topSn, boardSn};
         cameraFields = new TextField[]{cameraModuleSn, mcuSn, cameraSn, houseSn};
         bowlFields = new TextField[]{bowlModuleSn, comExSn, carrierSn, breakableSn};
-
 
         isduhPane.setCollapsible(false);
         upperPane.setCollapsible(false);
@@ -137,7 +146,7 @@ public class AllInOneAssemblerController {
         cameraPane.setCollapsible(false);
         bowlPane.setCollapsible(false);
 
-        addFieldValidator(upperModuleSn, "pManufUpperSensor");
+        addFieldValidator(upperSensorModuleSn, "pManufUpperSensor");
         addFieldValidator(cameraModuleSn, "pManufCamera");
         addFieldValidator(azimutModuleSn, "pManufAzimut");
         addFieldValidator(radarModuleSn, "pRadar");
@@ -162,13 +171,14 @@ public class AllInOneAssemblerController {
         clearFillBowlModule();
         clearFillIsduhSystem();
 
-        upperModuleSn.textProperty().addListener((observable, oldValue, newValue) -> clearFillUpperModule());
+        upperSensorModuleSn.textProperty().addListener((observable, oldValue, newValue) -> clearFillUpperModule());
         azimutModuleSn.textProperty().addListener((observable, oldValue, newValue) -> clearFillAzimutModule());
         cameraModuleSn.textProperty().addListener((observable, oldValue, newValue) -> clearFillCameraModule());
         bowlModuleSn.textProperty().addListener((observable, oldValue, newValue) -> clearFillBowlModule());
         isduhSystemSn.textProperty().addListener((observable, oldValue, newValue) -> clearFillIsduhSystem());
 
         saveBtn.setOnAction(e -> save());
+        historyBtn.setOnAction(e -> getHistory());
     }
 
     private void save() {
@@ -187,7 +197,7 @@ public class AllInOneAssemblerController {
                 return;
             }
         }
-
+        List<Object> saveList = new ArrayList<>();
         String sn;
         try {
             sn = fanModuleSn.getText().trim();
@@ -198,10 +208,10 @@ public class AllInOneAssemblerController {
                     fanModule.setUser(mainApp.getCurrentUser());
                     fanModule.setModule(sn);
                 }
-                fanService.saveOrUpdate(fanModule);
+                saveList.add(fanModule);
             }
-            sn = upperModuleSn.getText().trim();
-            if (!sn.isEmpty() && !upperModuleSn.getStyle().contains("yellow")) {
+            sn = upperSensorModuleSn.getText().trim();
+            if (!sn.isEmpty() && !upperSensorModuleSn.getStyle().contains("yellow")) {
                 upperSensorModule = upperService.findBySn(sn);
                 if (upperSensorModule == null) {
                     upperSensorModule = new UpperSensorModule();
@@ -218,7 +228,7 @@ public class AllInOneAssemblerController {
                     }
                     azimutModule.setTop(topSn.getText().trim().isEmpty() ? null : topSn.getText());
                     azimutModule.setBoard(boardSn.getText().trim().isEmpty() ? null : boardSn.getText());
-                    azimutService.saveOrUpdate(azimutModule);
+                    saveList.add(azimutModule);
                     upperSensorModule.setAzimutModule(azimutModule);
                 } else {
                     upperSensorModule.setAzimutModule();
@@ -234,7 +244,7 @@ public class AllInOneAssemblerController {
                     cameraModule.setMcu(mcuSn.getText().trim().isEmpty() ? null : mcuSn.getText());
                     cameraModule.setCamera(cameraSn.getText().trim().isEmpty() ? null : cameraSn.getText());
                     cameraModule.setCameraHouse(houseSn.getText().trim().isEmpty() ? null : houseSn.getText());
-                    cameraService.saveOrUpdate(cameraModule);
+                    saveList.add(cameraModule);
                     upperSensorModule.setCameraModule(cameraModule);
                 } else {
                     upperSensorModule.setCameraModule();
@@ -247,7 +257,7 @@ public class AllInOneAssemblerController {
                         radarModule.setUser(mainApp.getCurrentUser());
                         radarModule.setModule(sn);
                     }
-                    radarService.saveOrUpdate(radarModule);
+                    saveList.add(radarModule);
                     upperSensorModule.setRadarModule(radarModule);
                 } else {
                     upperSensorModule.setRadarModule();
@@ -260,7 +270,7 @@ public class AllInOneAssemblerController {
                         noseModule.setUser(mainApp.getCurrentUser());
                         noseModule.setModule(sn);
                     }
-                    noseModuleService.saveOrUpdate(noseModule);
+                    saveList.add(noseModule);
                     upperSensorModule.setNoseModule(noseModule);
                 } else {
                     upperSensorModule.setNoseModule();
@@ -268,7 +278,7 @@ public class AllInOneAssemblerController {
                 if (coolerSn.isVisible()) {
                     upperSensorModule.setCooler(coolerSn.getText());
                 }
-                upperService.saveOrUpdate(upperSensorModule);
+                saveList.add(upperSensorModule);
             }
             sn = bowlModuleSn.getText().trim();
             if (!sn.isEmpty() && !bowlModuleSn.getStyle().contains("yellow")) {
@@ -281,14 +291,20 @@ public class AllInOneAssemblerController {
                 bowlModule.setComEx(comExSn.getText().trim().isEmpty() ? null : comExSn.getText());
                 bowlModule.setCarrier(carrierSn.getText().trim().isEmpty() ? null : carrierSn.getText());
                 bowlModule.setBreakable(breakableSn.getText().trim().isEmpty() ? null : breakableSn.getText());
-                bowlService.saveOrUpdate(bowlModule);
+                HashMap<TextField, History> h = getHistoryMap(fieldHistorySet);
+                for (TextField f: h.keySet()) {
+                    History history = h.get(f);
+                    saveList.add(history);
+                    bowlModule.addHistory(history);
+                }
+                saveList.add(bowlModule);
             }
             if (fanModuleSn.getText().trim().isEmpty()) {
                 isduh.setFanModule();
             } else {
                 isduh.setFanModule(fanModule);
             }
-            if (upperModuleSn.getText().trim().isEmpty()) {
+            if (upperSensorModuleSn.getText().trim().isEmpty()) {
                 isduh.setUpperSensorModule();
             } else {
                 isduh.setUpperSensorModule(upperSensorModule);
@@ -299,7 +315,8 @@ public class AllInOneAssemblerController {
                 isduh.setBowlModule(bowlModule);
             }
             isduh.setAssemblyStatus(isAllDataFilled() ? 1 : 0);
-            isduhService.saveOrUpdate(isduh);
+            saveList.add(isduh);
+            isduhService.saveOrUpdate(saveList);
             stage.close();
             assemblyJournalController.fillTable();
         } catch (CustomException e) {
@@ -321,7 +338,11 @@ public class AllInOneAssemblerController {
                         }
                     } else {
                         HashMap<String, JSONObject> res = isduhService.globalSearchString(val);
+                        System.out.println(res);
                         for (String k : res.keySet()) {
+                            if (!k.contains("_module")) {
+                                continue;
+                            }
                             msg = String.format("%s SN: %s\nalready exist in %s\nSN: %s",
                                     key.toUpperCase(), val, k.toUpperCase(), res.get(k).get("module"));
                         }
@@ -379,6 +400,48 @@ public class AllInOneAssemblerController {
             }
         });
 
+        // add history if need
+        field.focusedProperty().addListener((arg0, oldPropertyValue, newPropertyValue) -> {
+            if (!newPropertyValue && isduh != null) {
+                try {
+                    String newValue = field.getText();
+                    method = isduh.getClass().getMethod("get" + Utils.setFirstCharToUpper(field.getId()));
+                    String oldValue = (String) method.invoke(isduh);
+                    if (!oldValue.isEmpty()) {
+                        if (!oldValue.equals(newValue)) {
+                            fieldHistorySet.add(field);
+                        } else {
+                            fieldHistorySet.remove(field);
+                        }
+                    }
+                } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+    }
+
+    private HashMap<TextField, History> getHistoryMap(Set<TextField> fieldSet) {
+        try {
+            System.out.println(fieldSet);
+            HashMap<TextField, History> historyMap = new HashMap<>();
+
+            for (TextField textField: fieldSet) {
+                String fieldName = Utils.setFirstCharToUpper(textField.getId()).replaceAll("Sn$", "");
+                String oldValue = (String) isduh.getClass()
+                        .getMethod(String.format("get%s", Utils.setFirstCharToUpper(textField.getId()))).invoke(isduh);
+                History history = new History();
+                history.setFieldChange(fieldName);
+                history.setOldValue(oldValue);
+                history.setNewValue(textField.getText());
+                history.setUser(mainApp.getCurrentUser());
+                historyMap.put(textField, history);
+            }
+            return historyMap;
+        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
     private void disableFieldsByType() {
@@ -417,16 +480,16 @@ public class AllInOneAssemblerController {
     }
 
     private void clearFillUpperModule() {
-        String sn = upperModuleSn.getText().trim();
+        String sn = upperSensorModuleSn.getText().trim();
         if (!sn.isEmpty()) {
-            if (upperModuleSn.getStyle().contains("yellow")) {
+            if (upperSensorModuleSn.getStyle().contains("yellow")) {
                 clearAndBlockField(upperFields, true);
             } else {
                 clearAndBlockField(upperFields, false);
                 try {
                     upperSensorModule = upperService.findBySn(sn);
                     if (upperSensorModule != null) {
-                        upperModuleSn.setText(upperSensorModule.getModule());
+                        upperSensorModuleSn.setText(upperSensorModule.getModule());
                         coolerSn.setText(upperSensorModule.getCooler());
                         noseModuleSn.setText(upperSensorModule.getNoseModuleSn());
                         radarModuleSn.setText(upperSensorModule.getRadarModuleSn());
@@ -533,6 +596,7 @@ public class AllInOneAssemblerController {
 
     public void setIsduhSystem(Isduh isduh) {
         this.isduh = isduh;
+        historyBtn.setVisible(isduh.isHistoryPresent());
         stage.setTitle("Assembly system SN: " + isduh.getSn());
         disableFieldsByType();
         // getting patterns by system type
@@ -575,7 +639,7 @@ public class AllInOneAssemblerController {
 
     private void setUpperModule(UpperSensorModule upperSensorModule) {
         this.upperSensorModule = upperSensorModule;
-        upperModuleSn.setText(upperSensorModule.getModule());
+        upperSensorModuleSn.setText(upperSensorModule.getModule());
         coolerSn.setText(upperSensorModule.getCooler());
         if (upperSensorModule.getRadarModule() != null) {
             setRadarModule(upperSensorModule.getRadarModule());
@@ -618,7 +682,7 @@ public class AllInOneAssemblerController {
     private void setTooltipAndPrompt() {
         setToltipAndPromptToField(isduhSystemSn, "manufISDUHModule");
         setToltipAndPromptToField(fanModuleSn, "manufFanModule");
-        setToltipAndPromptToField(upperModuleSn, "manufUpperSensorModule");
+        setToltipAndPromptToField(upperSensorModuleSn, "manufUpperSensorModule");
         setToltipAndPromptToField(coolerSn, "manufCooler");
         setToltipAndPromptToField(radarModuleSn, "manufRadarModule");
         setToltipAndPromptToField(azimutModuleSn, "manufAzimutModule");
@@ -669,6 +733,9 @@ public class AllInOneAssemblerController {
     private boolean isDoubleDataPresent() {
         HashMap<String, Integer> dataMap = new HashMap<>();
         for (Node node : getAllNodesInParent(isduhPane)) {
+            if (node instanceof TextField && ((TextField) node).getText() == null) {
+                ((TextField) node).setText("");
+            }
             if (node instanceof TextField && node.isVisible() && !((TextField) node).getText().isEmpty()) {
                 String data = ((TextField) node).getText().trim();
                 if (!data.isEmpty()) {
@@ -683,6 +750,14 @@ public class AllInOneAssemblerController {
         return false;
     }
 
+    private void getHistory() {
+//        HistoryService service = new HistoryService();
+//        List<History> historyList = service.findById()
+        mainApp.showHistoryView(isduh, stage);
+//        isduh.getModulesList().forEach(System.out::println);
+//        System.out.println(fieldHistorySet);
+    }
+
     public void setMainController(AssemblyJournalController assemblyJournalController) {
         this.assemblyJournalController = assemblyJournalController;
     }
@@ -694,7 +769,6 @@ public class AllInOneAssemblerController {
 
     public void setMainApp(MainApp mainApp) {
         this.mainApp = mainApp;
-
     }
 
     private Throwable getCause(Throwable e) {
