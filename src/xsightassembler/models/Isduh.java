@@ -12,11 +12,11 @@ import xsightassembler.utils.Utils;
 
 import javax.persistence.*;
 import java.io.IOException;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Set;
+import java.lang.reflect.InvocationTargetException;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Entity
 @Table(name = "isduh")
@@ -59,6 +59,10 @@ public class Isduh {
 
     public String getSn() {
         return sn;
+    }
+
+    public String getIsduhSystemSn() {
+        return getSn();
     }
 
     public void setSn(String sn) {
@@ -328,6 +332,16 @@ public class Isduh {
         return "";
     }
 
+    public List<Object> getAssemblyModules() {
+        List<Object> objectList = new ArrayList<>();
+        objectList.add(getFanModule());
+        objectList.add(getUpperSensorModule());
+        objectList.add(getNoseModule());
+        objectList.add(getCameraModule());
+        objectList.add(getBowlModule());
+        return objectList.stream().filter(Objects::nonNull).collect(Collectors.toList());
+    }
+
     public SimpleStringProperty snProperty() {
         return new SimpleStringProperty(getSn());
     }
@@ -372,6 +386,34 @@ public class Isduh {
         return null;
     }
 
+    public boolean isHistoryPresent() {
+        for (Object module: getModulesList()) {
+            if (module != null) {
+                try {
+                    Set<History> tmp = (Set<History>) module.getClass().getMethod("getHistorySet").invoke(module);
+                    if (tmp.size() > 0) {
+                        return true;
+                    }
+                } catch (InvocationTargetException | NoSuchMethodException | IllegalAccessException e) {
+                    MsgBox.msgException(e);
+                }
+            }
+        }
+        return false;
+    }
+
+    public List<Object> getModulesList() {
+        List<Object> tmp = new ArrayList<>();
+        tmp.add(getAzimutModule());
+        tmp.add(getBowlModule());
+        tmp.add(getFanModule());
+        tmp.add(getUpperSensorModule());
+        tmp.add(getCameraModule());
+        tmp.add(getRadarModule());
+        tmp.add(getNoseModule());
+        return tmp;
+    }
+
     public HashMap<String, Object> getModulesMap() {
         HashMap<String, Object> map = new HashMap<>();
         map.put(getAzimutModuleSn(), getAzimutModule());
@@ -382,6 +424,11 @@ public class Isduh {
         map.put(getRadarModuleSn(), getRadarModule());
         map.put(getUpperSensorModuleSn(), getUpperSensorModule());
         return map;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, date, sn, bowlModule, fanModule, upperSensorModule);
     }
 
     @Override

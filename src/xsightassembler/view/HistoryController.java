@@ -10,19 +10,19 @@ import javafx.stage.Stage;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import xsightassembler.models.History;
+import xsightassembler.models.Isduh;
 import xsightassembler.utils.MsgBox;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.Comparator;
-import java.util.Set;
+import java.util.*;
 
 public class HistoryController {
     Logger LOGGER = LogManager.getLogger(this.getClass().getName());
     private Method method;
     private Stage stage;
     private Object module;
-    private Set<History> historySet;
+    private Set<History> historySet = new HashSet<>();
 
     @FXML
     private TableView<History> tHistory;
@@ -72,7 +72,7 @@ public class HistoryController {
     }
 
     private void fillTable() {
-        ObservableList<History> res = FXCollections.observableArrayList(historySet);;
+        ObservableList<History> res = FXCollections.observableArrayList(this.historySet);
         FXCollections.sort(res, Comparator.comparingLong(History::getDateMilliseconds));
         tHistory.setItems(FXCollections.observableArrayList(res));
     }
@@ -85,18 +85,31 @@ public class HistoryController {
         this.module = module;
         try {
             String sn;
+            String typeModule;
             if (module.getClass().getSimpleName().equals("Isduh")) {
                 sn = (String) module.getClass().getMethod("getSn").invoke(module);
+                typeModule = "system";
+                List<Object> tmp = (List<Object>) module.getClass().getMethod("getModulesList").invoke(module);
+                for (Object o: tmp) {
+                    if (o != null) {
+                        Set<History> hSet = (Set<History>) o.getClass().getMethod("getHistorySet").invoke(o);
+                        if (hSet != null && hSet.size() > 0) {
+                            this.historySet.addAll(hSet);
+                        }
+                    }
+                }
             } else {
                 sn = (String) module.getClass().getMethod("getModule").invoke(module);
+                typeModule = module.getClass().getSimpleName();
+                this.historySet = (Set<History>) module.getClass().getMethod("getHistorySet").invoke(module);
             }
 
-            this.stage.setTitle(String.format("History of %s SN: %s", module.getClass().getSimpleName(), sn));
-            this.historySet = (Set<History>) module.getClass().getMethod("getHistorySet").invoke(module);
+            this.stage.setTitle(String.format("History of %s SN: %s", typeModule, sn));
             fillTable();
         } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
             LOGGER.error("Exception", e);
             MsgBox.msgException(e);
         }
+
     }
 }
