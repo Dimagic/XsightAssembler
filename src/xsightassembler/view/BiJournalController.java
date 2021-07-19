@@ -4,9 +4,11 @@ import javafx.animation.Interpolator;
 import javafx.animation.RotateTransition;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.fxml.FXML;
+import javafx.geometry.Pos;
 import javafx.scene.Cursor;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
@@ -14,8 +16,8 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.paint.Color;
 import javafx.stage.Stage;
-import javafx.util.Callback;
 import javafx.util.Duration;
 import javafx.util.StringConverter;
 import org.apache.logging.log4j.LogManager;
@@ -96,6 +98,10 @@ public class BiJournalController {
     @FXML
     private TableColumn<BiTestWorker, String> icrColumn;
     @FXML
+    private TableColumn<BiTestWorker, String> ISDUflagColumn;
+    @FXML
+    private TableColumn<BiTestWorker, String> snCheckColumn;
+    @FXML
     private TableColumn<BiTestWorker, String> startDateColumn;
     @FXML
     private TableColumn<BiTestWorker, Double> progressColumn;
@@ -132,6 +138,7 @@ public class BiJournalController {
 
     @FXML
     private void initialize() {
+        tRunningTests.setTableMenuButtonVisible(true);
         initDate();
         isShutdown = false;
 
@@ -161,7 +168,6 @@ public class BiJournalController {
         tRunningTests.getColumns().forEach(c -> c.setSortable(false));
 
 //        running test table
-
         labNumColumn.setCellValueFactory(cellData -> cellData.getValue().getLabNumString());
         netNameColumn.setCellValueFactory(cellData -> cellData.getValue().getBiNetName());
         stageColumn.setCellValueFactory(cellData -> cellData.getValue().getStageString());
@@ -169,10 +175,19 @@ public class BiJournalController {
         plugDateColumn.setCellValueFactory(cellData -> cellData.getValue().getPlugDateString());
         coolerColumn.setCellValueFactory(cellData -> cellData.getValue().getCoolerStatus());
         icrColumn.setCellValueFactory(cellData -> cellData.getValue().getIcrStatus());
+        ISDUflagColumn.setCellValueFactory(cellData -> cellData.getValue().getISDUFlag());
+        snCheckColumn.setCellValueFactory(cellData -> cellData.getValue().getSnCheckStatus());
         startDateColumn.setCellValueFactory(cellData -> cellData.getValue().getStartDateString());
         userColumn.setCellValueFactory(cellDate -> cellDate.getValue().getUserLogin());
 
+
+
         stateColumn.setCellValueFactory(new PropertyValueFactory<>("message"));
+
+        setPassFailCellFactory(coolerColumn);
+        setPassFailCellFactory(icrColumn);
+        setPassFailCellFactory(ISDUflagColumn);
+        setPassFailCellFactory(snCheckColumn);
 
         progressColumn.setCellValueFactory(new PropertyValueFactory<>("progress"));
         progressColumn.setCellFactory(param -> new TableCell<BiTestWorker, Double>() {
@@ -322,8 +337,32 @@ public class BiJournalController {
                 }
         );
 
+        runningTestList.addListener(new ListChangeListener<BiTestWorker>() {
+            @Override
+            public void onChanged(Change<? extends BiTestWorker> change) {
+                System.out.println("Selection changed: " + change.getList());
+            }
+        });
+
         tRunningTests.setItems(runningTestList);
         fillTable();
+    }
+
+    private void setPassFailCellFactory(TableColumn<BiTestWorker, String> column) {
+        column.setCellFactory(param -> new TableCell<BiTestWorker, String>() {
+            public void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (!isEmpty()) {
+                    this.setAlignment(Pos.CENTER);
+                    if (item.contains("Yes") || item.contains("Pass")) {
+                        this.setTextFill(Color.GREEN);
+                    } else {
+                        this.setTextFill(Color.RED);
+                    }
+                    setText(item);
+                }
+            }
+        });
     }
 
     public void fillTable() {
@@ -356,11 +395,11 @@ public class BiJournalController {
     }
 
     public void refreshJournal() {
-//        runningTestList.forEach(e -> {
-//            if (e.getBiTest() != null && e.getBiTest().getUnplugDate() != null) {
-//                e.setBiTest(null);
-//            }
-//        });
+        for (BiTestWorker btw: runningTestList) {
+            if (btw.getBiTest() != null && btw.getBiTest().getUnplugDate() != null) {
+                btw.setBiTest(null);
+            }
+        }
         tRunningTests.refresh();
     }
 
@@ -601,25 +640,6 @@ public class BiJournalController {
         dateTo.setValue(stop);
     }
 
-    private <T> void addToolTip(TableColumn<BiTestWorker, T> column) {
-        Callback<TableColumn<BiTestWorker, T>, TableCell<BiTestWorker, T>> cellFactory = column.getCellFactory();
-
-        column.setCellFactory(c -> {
-            TableCell<BiTestWorker, T> cell = cellFactory.call(c);
-
-            Tooltip tooltip = new Tooltip();
-//            BiTestWorker btw = cell.getTableRow().getItem();
-//            if (btw != null) {
-//                tooltip.textProperty().bind(btw.titleProperty());
-////            tooltip.textProperty().bind(cell.idProperty());
-//                cell.setTooltip(tooltip);
-//            }
-
-            return cell;
-
-        });
-    }
-
     public BiTest getBiTestByLabNum(int labNum) {
         for (BiTestWorker btw : runningTestList) {
             if (btw.getLabNum() == labNum) return btw.getBiTest();
@@ -648,6 +668,7 @@ public class BiJournalController {
     }
 
     public void shutdown() {
+        runningTestList.clear();
         isShutdown = true;
     }
 
@@ -657,5 +678,6 @@ public class BiJournalController {
 
     public void setStage(Stage stage) {
         this.stage = stage;
+
     }
 }

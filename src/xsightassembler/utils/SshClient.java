@@ -197,6 +197,7 @@ public class SshClient {
         try {
             return execSingleCommand("cat /sys/class/dmi/id/board_serial").trim();
         } catch (IOException | JSchException e) {
+            e.printStackTrace();
             MsgBox.msgError(e.getLocalizedMessage());
         }
         return null;
@@ -220,6 +221,53 @@ public class SshClient {
             MsgBox.msgError(e.getLocalizedMessage());
         }
         return null;
+    }
+
+    public String getPDUEep() {
+        try {
+            return execSingleCommand("/opt/Xsight/Fodetect/app/bin/PDUEep -p").trim();
+        } catch (IOException | JSchException e) {
+            MsgBox.msgError(e.getLocalizedMessage());
+        }
+        return null;
+    }
+
+    public void setISduFlag(int flag) {
+        try {
+            execSingleCommand(String.format("/opt/Xsight/Fodetect/app/bin/PDUEep -w ISduFlag -d %s", flag));
+        } catch (IOException | JSchException e) {
+            MsgBox.msgError(e.getLocalizedMessage());
+        }
+    }
+
+    public String getMcuMonitorStatus() {
+//        try {
+//            return execSingleCommand("/opt/Xsight/Fodetect/app/bin/MCUMonitor /dev/ttyUSB0 Status").trim();
+//        } catch (IOException | JSchException e) {
+//            MsgBox.msgError(e.getLocalizedMessage());
+//        }
+//        return null;
+        return "===> Decoded RX message | Type: MPU, ID: Status, Cnt: 4, Ack: 1 | Responce time: 0 ms \n" +
+                "Discrete: Radar on\tCamera on\tLaser off\tNIR off\n" +
+                "\t  Pump off\tFan on\t\tMCU Rst off\tRDRHUB.Rst off\n" +
+                "\t  Acc.Tst off\tMAN. O/R off\tEye Safety on\n" +
+                "\n" +
+                "Temperature:\tLocal 35c\tRemote -64c\tRunway -70.000000\n" +
+                "\n" +
+                "PWM:\t\tHeater 000%\tWiper 000%\tDoor 000%\tIR Filt. 000%\n" +
+                "\n" +
+                "Input Voltage: 11.956[Volt]\n" +
+                "Current: Wiper  : avg   0[mA]      max   0[mA]      cutoff 299[mA]\n" +
+                "\t Door   : avg   2[mA]      max 213[mA]      cutoff 149[mA]\n" +
+                "\t IR Filt: avg   5[mA]      max 118[mA]      cutoff  79[mA]\n" +
+                "\t NIR    : avg   0[mA]      max   0[mA]      cutoff 4500[mA]\n" +
+                "\n" +
+                "Status: Wiper: unmounted\tWiper plus pump Error: 0 \n" +
+                "\tDoor:  open \n" +
+                "\tIRF:   mounted - out \n" +
+                "\tUART2 Mux Channel: 0\n" +
+                "\n" +
+                "BIT results: 0x0";
     }
 
     public void downloadLogFiles(String remoteDir, String destDir) {

@@ -33,6 +33,8 @@
                               <TableColumn fx:id="plugDateColumn" maxWidth="120.0" minWidth="120.0" prefWidth="120.0" text="Date plug" />
                               <TableColumn fx:id="coolerColumn" maxWidth="50.0" minWidth="50.0" prefWidth="50.0" text="Clr" />
                               <TableColumn fx:id="icrColumn" maxWidth="50.0" minWidth="50.0" prefWidth="50.0" text="ICR" />
+                              <TableColumn fx:id="ISDUflagColumn" maxWidth="60.0" minWidth="60.0" prefWidth="60.0" text="ISduFlag" />
+                              <TableColumn fx:id="snCheckColumn" maxWidth="60.0" minWidth="60.0" prefWidth="60.0" text="SN check" />
                               <TableColumn fx:id="startDateColumn" maxWidth="120.0" minWidth="120.0" prefWidth="120.0" text="Date start" />
                               <TableColumn fx:id="progressColumn" maxWidth="100.0" minWidth="100.0" prefWidth="100.0" text="Progress" />
                               <TableColumn fx:id="stateColumn" minWidth="100.0" prefWidth="150.0" text="State" />

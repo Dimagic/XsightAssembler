@@ -26,8 +26,7 @@ public class BiTestWorker extends Task<Void> {
 
     private final BiJournalController controller;
     final BlockingQueue<BiTest> queue = new ArrayBlockingQueue<>(1);
-    private ExecutorService
-            exService;
+    private ExecutorService exService;
     private final Integer labNum;
 
     private BiTest biTest;
@@ -37,11 +36,13 @@ public class BiTestWorker extends Task<Void> {
     private long logTimer = 0;
     private BiLogAnalyzer logAnalyzer;
     private FilteredList<LogItem> logItems;
-    private Settings settings;
+    private final Settings settings;
     private HashMap<String, List<String>> analyzerMap;
     private Ssh ssh = null;
     private boolean isSerialsChecked = false;
+    private boolean isISduFlag = false;
     private int onlineStatus;
+    private SshClient sshClient;
 
     public BiTestWorker(Integer labNum, BiJournalController controller) {
         this.labNum = labNum;
@@ -68,12 +69,17 @@ public class BiTestWorker extends Task<Void> {
                     }
                 }
                 onlineStatus = Utils.isSystemOnline(ipName);
+                if (onlineStatus != 1) {
+                    isSerialsChecked = false;
+                    isISduFlag = false;
+                    controller.refreshJournal();
+                }
                 switch (onlineStatus) {
                     case 1:
                         updateConnectionStatus("System online");
-
-                        if (!isSerialsChecked) {
+                        if (!isSerialsChecked || !isISduFlag) {
                             isSerialsChecked = checkSerials(ipName);
+                            controller.refreshJournal();
                         }
                         startTime = biTest.getStartDate() == null ? 0: biTest.getStartDate().getTime();
                         long startShift = TimeUnit.MINUTES.toMillis(settings.getStartAnalyzeShiftInt());
@@ -190,15 +196,12 @@ public class BiTestWorker extends Task<Void> {
     }
 
     private boolean checkSerials(String ipName) {
-//        SSHUtils sshUtils = new SSHUtils(ipName, settings);
-        SshClient sshClient = new SshClient(ipName, settings.getSshUser(), settings.getSshPass(), null);
-
+        sshClient = getSshClient(ipName);
+        getISduFlag(sshClient);
         BowlModule bowlModule = getIsduh().getBowlModule();
         String comExSn = bowlModule.getComEx();
         String comExTmp = Long.valueOf(sshClient.getComExSn()).toString();
-        boolean needChange = (comExSn == null);
         if (comExSn != null && !comExSn.equals(comExTmp)) {
-            needChange = true;
             MsgBox.msgInfo(String.format("ComEx serial in assembly differs\n" +
                     "from the installed board number.\n" +
                     "It will be changed in assembly.\n" +
@@ -206,40 +209,50 @@ public class BiTestWorker extends Task<Void> {
         }
 
         BowlModuleService bowlModuleService = new BowlModuleService();
-        if (needChange) {
-            writeComExSn(bowlModuleService, bowlModule, comExTmp);
-        }
-        writeMacAndFlash(bowlModuleService, bowlModule, sshClient.getMacAddress(), sshClient.getFlashMemorySn());
-        return true;
+        return writeComExSn(bowlModuleService, bowlModule, comExTmp) &&
+                writeMacAndFlash(bowlModuleService, bowlModule, sshClient.getMacAddress(), sshClient.getFlashMemorySn());
     }
 
-    private void writeMacAndFlash(BowlModuleService service, BowlModule bowlModule, String mac, String flash) {
+    private SshClient getSshClient(String ipName) {
+        if (sshClient == null || !sshClient.getSession().isConnected()) {
+            return new SshClient(ipName, settings.getSshUser(), settings.getSshPass(), null);
+        }
+        return sshClient;
+    }
+
+    private boolean writeMacAndFlash(BowlModuleService service, BowlModule bowlModule, String mac, String flash) {
         try {
             System.out.println(mac);
             if (isBowlAssemblySnPresent(service, bowlModule, "Mac address", mac) ||
                     isBowlAssemblySnPresent(service, bowlModule, "Flash", flash) ) {
-                return;
+                return true;
             }
             bowlModule.setFlash(flash);
             bowlModule.setMac(mac);
-            service.saveOrUpdate(bowlModule);
+            return service.saveOrUpdate(bowlModule);
         } catch (CustomException e) {
             LOGGER.error("Save bowl", e);
             MsgBox.msgException(e);
         }
-
+        return false;
     }
 
-    private void writeComExSn(BowlModuleService service, BowlModule bowlModule, String sn) {
+    private void getISduFlag(SshClient sshClient) {
+        String tmp = sshClient.getPDUEep();
+        isISduFlag = tmp.contains("ISduFlag=1");
+    }
+
+    private boolean writeComExSn(BowlModuleService service, BowlModule bowlModule, String sn) {
         try {
             if (!isBowlAssemblySnPresent(service, bowlModule, "ComEx", sn)) {
                 bowlModule.setComEx(sn);
-                service.saveOrUpdate(bowlModule);
+                return service.saveOrUpdate(bowlModule);
             }
         } catch (CustomException e) {
             LOGGER.error("Save bowl", e);
             MsgBox.msgException(e);
         }
+        return false;
     }
 
     private boolean isBowlAssemblySnPresent(BowlModuleService service, BowlModule bowlModule, String name, String sn) throws CustomException {
@@ -378,6 +391,22 @@ public class BiTestWorker extends Task<Void> {
             return new SimpleStringProperty("");
         }
         return new SimpleStringProperty(Strings.getPassFailMap().get(biTest.getIcr()));
+    }
+
+    public SimpleStringProperty getSnCheckStatus() {
+        if (biTest == null) {
+            return new SimpleStringProperty("");
+        }
+        String res = isSerialsChecked ? "Yes": "No";
+        return new SimpleStringProperty(res);
+    }
+
+    public SimpleStringProperty getISDUFlag() {
+        if (biTest == null) {
+            return new SimpleStringProperty("");
+        }
+        String res = isISduFlag ? "Yes": "No";
+        return new SimpleStringProperty(res);
     }
 
     public SimpleStringProperty getType() {
