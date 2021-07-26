@@ -8,13 +8,13 @@ import javafx.concurrent.Task;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import xsightassembler.MainApp;
-import xsightassembler.models.BiTest;
-import xsightassembler.models.BowlModule;
-import xsightassembler.models.Isduh;
-import xsightassembler.models.LogItem;
+import xsightassembler.models.*;
 import xsightassembler.services.BowlModuleService;
+import xsightassembler.services.IsduhService;
+import xsightassembler.services.UpperSensorModuleService;
 import xsightassembler.view.BiJournalController;
 
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.regex.Matcher;
@@ -38,20 +38,29 @@ public class BiTestWorker extends Task<Void> {
     private FilteredList<LogItem> logItems;
     private final Settings settings;
     private HashMap<String, List<String>> analyzerMap;
-    private Ssh ssh = null;
+    private SshClient sshClient;
     private boolean isSerialsChecked = false;
     private boolean isISduFlag = false;
     private int onlineStatus;
-    private SshClient sshClient;
+    private IniUtils iniCmd;
+    private Map<String, Boolean> checkSerialsMap = new HashMap<>();
 
     public BiTestWorker(Integer labNum, BiJournalController controller) {
         this.labNum = labNum;
         this.controller = controller;
         this.settings = Utils.getSettings();
+        try {
+            this.iniCmd = new IniUtils("./strings.ini", "mcu_cmd");
+        } catch (IOException e) {
+            MsgBox.msgException(e);
+        }
     }
 
     @Override
     protected Void call() throws Exception {
+        if (iniCmd == null) {
+            return null;
+        }
         analyzerMap = Utils.getStringMapFromFile("./analyzer.ini");
         long durationTime;
         long startTime;
@@ -68,25 +77,31 @@ public class BiTestWorker extends Task<Void> {
                         ipName = ipName + settings.getNamePostfix();
                     }
                 }
+                // update progressbar
+                startTime = biTest.getStartDate() == null ? 0 : biTest.getStartDate().getTime();
+                long startShift = TimeUnit.MINUTES.toMillis(settings.getStartAnalyzeShiftInt());
+                needTime = biTest.getDuration() * 3600000L + startShift;
+                durationTime = System.currentTimeMillis() - startTime;
+                this.updateProgress(durationTime, needTime);
+
                 onlineStatus = Utils.isSystemOnline(ipName);
                 if (onlineStatus != 1) {
                     isSerialsChecked = false;
                     isISduFlag = false;
+                    checkSerialsMap.clear();
                     controller.refreshJournal();
                 }
                 switch (onlineStatus) {
                     case 1:
                         updateConnectionStatus("System online");
+                        if (biTest.getStartDate() != null) {
+                            logAnalyzerTask(TimeUnit.MILLISECONDS.toMinutes(durationTime));
+                        }
                         if (!isSerialsChecked || !isISduFlag) {
-                            isSerialsChecked = checkSerials(ipName);
+                            isSerialsChecked = checkSerials();
+                            Thread.sleep(1000);
                             controller.refreshJournal();
                         }
-                        startTime = biTest.getStartDate() == null ? 0: biTest.getStartDate().getTime();
-                        long startShift = TimeUnit.MINUTES.toMillis(settings.getStartAnalyzeShiftInt());
-                        needTime = biTest.getDuration() * 3600000L + startShift;
-                        durationTime = System.currentTimeMillis() - startTime;
-                        logAnalyzerTask(TimeUnit.MILLISECONDS.toMinutes(durationTime));
-                        this.updateProgress(durationTime, needTime);
                         Thread.sleep(10000);
                         break;
                     case 0:
@@ -145,11 +160,14 @@ public class BiTestWorker extends Task<Void> {
         } else if (logTimer != 0 && (minutes % settings.getLogCheckPeriodInt()) != 0) {
             return;
         }
+        writeConsole("Start log analyzer task");
         exService = Executors.newSingleThreadExecutor();
-        logAnalyzer = new BiLogAnalyzer(biTest);
+        logAnalyzer = new BiLogAnalyzer(biTest, this);
         logAnalyzer.setOnSucceeded(event -> {
             logItems = logAnalyzer.getValue();
             if (logItems != null) {
+//                logItems.setPredicate(s -> s.getMessage().contains("UpperSensorSerialNumber"));
+//                System.out.println(logItems.size());
                 logItems.setPredicate(s -> s.getErrType() != null);
                 int errors = logItems.size();
                 int ignored = 0;
@@ -188,77 +206,20 @@ public class BiTestWorker extends Task<Void> {
 
             }
             logTimer = minutes;
+            writeConsole("Complete log analyzer task");
         });
 
-        logAnalyzer.setOnFailed(e -> MsgBox.msgWarning("Log analyzer task failure"));
+        logAnalyzer.setOnFailed(e -> writeConsole("Log analyzer task failure"));
         exService.execute(logAnalyzer);
         exService.shutdown();
-    }
-
-    private boolean checkSerials(String ipName) {
-        sshClient = getSshClient(ipName);
-        getISduFlag(sshClient);
-        BowlModule bowlModule = getIsduh().getBowlModule();
-        String comExSn = bowlModule.getComEx();
-        String comExTmp = Long.valueOf(sshClient.getComExSn()).toString();
-        if (comExSn != null && !comExSn.equals(comExTmp)) {
-            MsgBox.msgInfo(String.format("ComEx serial in assembly differs\n" +
-                    "from the installed board number.\n" +
-                    "It will be changed in assembly.\n" +
-                    "Assembly SN: %s\nBoard SN: %s", comExSn, comExTmp));
-        }
-
-        BowlModuleService bowlModuleService = new BowlModuleService();
-        return writeComExSn(bowlModuleService, bowlModule, comExTmp) &&
-                writeMacAndFlash(bowlModuleService, bowlModule, sshClient.getMacAddress(), sshClient.getFlashMemorySn());
-    }
-
-    private SshClient getSshClient(String ipName) {
-        if (sshClient == null || !sshClient.getSession().isConnected()) {
-            return new SshClient(ipName, settings.getSshUser(), settings.getSshPass(), null);
-        }
-        return sshClient;
-    }
-
-    private boolean writeMacAndFlash(BowlModuleService service, BowlModule bowlModule, String mac, String flash) {
-        try {
-            System.out.println(mac);
-            if (isBowlAssemblySnPresent(service, bowlModule, "Mac address", mac) ||
-                    isBowlAssemblySnPresent(service, bowlModule, "Flash", flash) ) {
-                return true;
-            }
-            bowlModule.setFlash(flash);
-            bowlModule.setMac(mac);
-            return service.saveOrUpdate(bowlModule);
-        } catch (CustomException e) {
-            LOGGER.error("Save bowl", e);
-            MsgBox.msgException(e);
-        }
-        return false;
-    }
-
-    private void getISduFlag(SshClient sshClient) {
-        String tmp = sshClient.getPDUEep();
-        isISduFlag = tmp.contains("ISduFlag=1");
-    }
-
-    private boolean writeComExSn(BowlModuleService service, BowlModule bowlModule, String sn) {
-        try {
-            if (!isBowlAssemblySnPresent(service, bowlModule, "ComEx", sn)) {
-                bowlModule.setComEx(sn);
-                return service.saveOrUpdate(bowlModule);
-            }
-        } catch (CustomException e) {
-            LOGGER.error("Save bowl", e);
-            MsgBox.msgException(e);
-        }
-        return false;
     }
 
     private boolean isBowlAssemblySnPresent(BowlModuleService service, BowlModule bowlModule, String name, String sn) throws CustomException {
         BowlModule tmp = service.findByInnerModuleSn(sn);
         if (tmp != null && !tmp.getId().equals(bowlModule.getId())) {
-            MsgBox.msgWarning(String.format("%s: %s\nalready use on bowl module SN: %s", name, sn, tmp.getModule()));
+            String msg = String.format("%s: %s\nalready use on bowl module SN: %s", name, sn, tmp.getModule());
+            MsgBox.msgWarning(msg);
+            writeConsole(msg);
             return true;
         }
         return false;
@@ -310,6 +271,7 @@ public class BiTestWorker extends Task<Void> {
 
     public void setBiTest(BiTest biTest) {
         this.isSerialsChecked = false;
+        this.isISduFlag = false;
         this.biTest = biTest;
         if (biTest != null && queue.isEmpty()) {
             queue.add(biTest);
@@ -397,7 +359,7 @@ public class BiTestWorker extends Task<Void> {
         if (biTest == null) {
             return new SimpleStringProperty("");
         }
-        String res = isSerialsChecked ? "Yes": "No";
+        String res = isSerialsChecked ? "Yes" : "No";
         return new SimpleStringProperty(res);
     }
 
@@ -405,7 +367,7 @@ public class BiTestWorker extends Task<Void> {
         if (biTest == null) {
             return new SimpleStringProperty("");
         }
-        String res = isISduFlag ? "Yes": "No";
+        String res = isISduFlag ? "Yes" : "No";
         return new SimpleStringProperty(res);
     }
 
@@ -416,6 +378,10 @@ public class BiTestWorker extends Task<Void> {
         return biTest.getTypeProperty();
     }
 
+    public void writeConsole(String value) {
+        controller.writeTestLog(this, value);
+    }
+
     public ObservableValue<String> getUserLogin() {
         if (biTest == null) {
             return new SimpleStringProperty("");
@@ -423,12 +389,211 @@ public class BiTestWorker extends Task<Void> {
         return Utils.stringToProperty(biTest.getUserLogin());
     }
 
+    private boolean checkSerials() {
+        // check uptime
+        String sUptime = sendSshCommand("getUptimeMs");
+        long uptime = 0;
+        if (sUptime != null && !sUptime.isEmpty()) {
+            uptime = Long.parseLong(sUptime);
+        } else {
+            writeConsole("Can't get system uptime");
+            return false;
+        }
+        if (uptime < 30000) {
+            writeConsole(String.format("Uptime is: %s. Waiting for 3 minutes", Utils.formatHMSM(uptime)));
+            return false;
+        }
+        writeConsole("Uptime is: " + Utils.formatHMSM(uptime));
+        checkISduFlag();
+        return writeComExSN() && writeMac() && writeFlashSn() && writeUpperSn();
+    }
+
+    private boolean checkISduFlag() {
+        if (checkSerialsMap.get("ISduFlag") != null && checkSerialsMap.get("ISduFlag")) {
+            return true;
+        }
+        String flag = sendSshCommand("getIsduFlag");
+        if (flag != null && !flag.isEmpty()) {
+            isISduFlag = flag.trim().equals("1");
+            writeConsole(String.format("%-10s: %s","ISduFlag", isISduFlag));
+        } else {
+            writeConsole("ISduFlag not found");
+        }
+        checkSerialsMap.put("ISduFlag", isISduFlag);
+        return false;
+    }
+
+    private boolean writeComExSN() {
+        if (checkSerialsMap.get("ComExSn") != null && checkSerialsMap.get("ComExSn")) {
+            return true;
+        }
+        String sn = sendSshCommand("getComExSn");
+        if (sn != null && !sn.isEmpty()) {
+            try {
+                sn = Long.valueOf(sn).toString();
+                BowlModule bowlModule = getIsduh().getBowlModule();
+                bowlModule.setComEx(sn);
+                boolean res = new BowlModuleService().saveOrUpdate(bowlModule);
+                if (res) {
+                    writeConsole(String.format("%-10s: %s", "ComEx SN", sn));
+                } else {
+                    writeConsole("Can't save bowl module");
+                }
+                checkSerialsMap.put("ComExSn", res);
+                return res;
+            } catch (CustomException e) {
+                LOGGER.error("writeComExSN", e);
+                MsgBox.msgWarning(e.getMessage());
+            }
+        }
+        writeConsole("ComEx SN: can't get serial");
+        return false;
+    }
+
+    private boolean writeFlashSn() {
+        if (checkSerialsMap.get("FlashSn") != null && checkSerialsMap.get("FlashSn")) {
+            return true;
+        }
+        String sn = null;
+        String tmp = sendSshCommand("getFlashMemorySn");
+        if (tmp != null) {
+            sn = tmp.split("=")[1];
+        }
+        if (sn != null && !sn.isEmpty()) {
+            try {
+                BowlModule bowlModule = getIsduh().getBowlModule();
+                bowlModule.setFlash(sn);
+                boolean res = new BowlModuleService().saveOrUpdate(bowlModule);
+                if (res) {
+                    writeConsole(String.format("%-10s: %s", "Flash SN", sn));
+                } else {
+                    writeConsole("Can't save bowl module");
+                }
+                checkSerialsMap.put("FlashSn", res);
+                return res;
+            } catch (CustomException e) {
+                LOGGER.error("writeFlashSn", e);
+                MsgBox.msgWarning(e.getMessage());
+            }
+        }
+       return false;
+    }
+
+    private boolean writeMac() {
+        if (checkSerialsMap.get("MacAddress") != null && checkSerialsMap.get("MacAddress")) {
+            return true;
+        }
+        String mac = sendSshCommand("getMacAddress");
+        if (mac != null && !mac.isEmpty()) {
+            try {
+                mac = mac.toUpperCase().trim();
+                BowlModule bowlModule = getIsduh().getBowlModule();
+                bowlModule.setMac(mac);
+                boolean res = new BowlModuleService().saveOrUpdate(bowlModule);
+                if (res) {
+                    writeConsole(String.format("%-10s: %s", "MAC", mac));
+                } else {
+                    writeConsole("Can't save bowl module");
+                }
+                checkSerialsMap.put("MacAddress", res);
+                return res;
+            } catch (CustomException e) {
+                LOGGER.error("writeFlashSn", e);
+                MsgBox.msgWarning(e.getMessage());
+            }
+        }
+        return false;
+    }
+
+    private boolean writeUpperSn() {
+        if (checkSerialsMap.get("UpperSn") != null && checkSerialsMap.get("UpperSn")) {
+            return true;
+        }
+        String sn = sendSshCommand("getUpperSensorSn");
+        if (sn != null && !sn.isEmpty()) {
+            Pattern p = Pattern.compile("(?<=UpperUnitSerialNumber=)(\\d){10}$");
+            Matcher m = p.matcher(sn);
+            if (m.find()) {
+                sn = String.format("AM%s", m.group(0));
+                try {
+                    Isduh currentIsduh = getIsduh();
+                    UpperSensorModuleService upperService = new UpperSensorModuleService();
+                    IsduhService isduhService = new IsduhService();
+                    UpperSensorModule upperSensorModule = upperService.findBySn(sn);
+                    if (upperSensorModule != null) {
+                        if (upperSensorModule.getModule().equals(currentIsduh.getUpperSensorModuleSn())) {
+                            writeConsole(String.format("%-10s: %s", "Upper SN", sn));
+                            return true;
+                        }
+                        Isduh tmpIsduh = isduhService.findByUpperSensorModule(sn);
+                        if (tmpIsduh != null) {
+                            MsgBox.msgInfo(String.format("Upper sensor SN: %s\nalready use in system SN: %s\n" +
+                                    "Will replace to this system.", sn, tmpIsduh.getSn()));
+                            tmpIsduh.setUpperSensorModule(null);
+                            currentIsduh.setUpperSensorModule(upperSensorModule);
+                            List<Object> forSave = new ArrayList<>();
+                            forSave.add(tmpIsduh);
+                            forSave.add(currentIsduh);
+                            isduhService.saveOrUpdate(forSave);
+                            writeConsole(String.format("Upper sensor SN: %s moved from system %s to %s",
+                                    sn, tmpIsduh.getSn(), currentIsduh.getSn()));
+                            return true;
+                         }
+                    }
+
+                    upperSensorModule = new UpperSensorModule();
+                    upperSensorModule.setModule(sn);
+                    upperSensorModule.setUser(getCurrentUser());
+                    upperService.saveOrUpdate(upperSensorModule);
+                    currentIsduh.setUpperSensorModule(upperSensorModule);
+                    isduhService.saveOrUpdate(currentIsduh);
+                    writeConsole(String.format("%1$-15s: s", "Upper SN", sn));
+                    checkSerialsMap.put("UpperSn", true);
+                    return true;
+                } catch (CustomException e) {
+                    LOGGER.error("writeUpperSn", e);
+                    MsgBox.msgWarning(e.getMessage());
+                }
+            }
+        }
+        return false;
+    }
+
+    private String sendSshCommand(String key) {
+        String res = "";
+        String cmd = iniCmd.getString(key);
+        if (cmd == null) {
+            MsgBox.msgWarning("Command by key %s not found.\n" +
+                    "Please check strings.ini file and try again");
+            return null;
+        }
+        if (sshClient == null) {
+            sshClient = new SshClient(getBiNetName().getValue(), settings.getSshUser(), settings.getSshPass(), null);
+        }
+
+        ExecutorService executor = Executors.newCachedThreadPool();
+        Callable<Object> task = () -> sshClient.execSingleCommand(cmd);
+        Future<Object> future = executor.submit(task);
+        try {
+            res = (String) future.get(10, TimeUnit.SECONDS);
+        } catch (TimeoutException ex) {
+            return null;
+        } catch (InterruptedException | ExecutionException e) {
+            LOGGER.error("sendSshCommand", e);
+            MsgBox.msgException(e);
+        } finally {
+            future.cancel(true);
+        }
+        executor.shutdown();
+        return res.trim();
+    }
+
     public boolean isOnline() {
         return onlineStatus == 1;
     }
 
-    public void setMainApp(MainApp mainApp) {
-        this.mainApp = mainApp;
+    private User getCurrentUser() {
+        return controller.getMainApp().getCurrentUser();
     }
 
     private static class Ssh extends AsshClient {
