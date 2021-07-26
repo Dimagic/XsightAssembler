@@ -1,9 +1,11 @@
 package xsightassembler.services;
 
+import org.json.simple.JSONObject;
 import xsightassembler.dao.UpperSensorDao;
 import xsightassembler.models.UpperSensorModule;
 import xsightassembler.utils.CustomException;
 
+import java.util.HashMap;
 import java.util.List;
 
 public class UpperSensorModuleService {
@@ -40,5 +42,9 @@ public class UpperSensorModuleService {
 
     public UpperSensorModule findByInnerModuleSn(String sn) throws CustomException {
         return dao.findByInnerModuleSn(sn);
+    }
+
+    public HashMap<String, JSONObject> globalSearchString(String s) throws CustomException {
+        return dao.globalSearchString(s);
     }
 }

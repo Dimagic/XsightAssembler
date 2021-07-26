@@ -51,6 +51,10 @@ public class IsduhService {
         return dao.findByAzimutModule(sn);
     }
 
+    public Isduh findByUpperSensorModule(String sn) throws CustomException {
+        return dao.findByUpperSensorModule(sn);
+    }
+
     public List<Isduh> getAllBetweenDate(Date start, Date stop) throws CustomException {
         return dao.getAllBetweenDate(start, stop);
     }

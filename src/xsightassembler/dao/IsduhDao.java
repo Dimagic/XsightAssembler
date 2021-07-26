@@ -70,6 +70,23 @@ public class IsduhDao implements UniversalDao {
         }
     }
 
+    public Isduh findByUpperSensorModule(String sn) throws CustomException {
+        Session session = HibernateSessionFactoryUtil.getSessionFactory().openSession();
+        try {
+            Isduh module = (Isduh) session.createSQLQuery(
+                    "SELECT * FROM public.isduh WHERE uppersensormodule_id = " +
+                            "(SELECT id FROM public.upper_sensor_module WHERE module = :sn)")
+                    .addEntity(Isduh.class)
+                    .setParameter("sn", sn.trim().toUpperCase()).getSingleResult();
+            session.close();
+            return module;
+        } catch (NoResultException e) {
+            return null;
+        } catch (Exception e) {
+            throw new CustomException(e);
+        }
+    }
+
     public Isduh findByModule(Object val) throws CustomException {
         Session session = HibernateSessionFactoryUtil.getSessionFactory().openSession();
         try {
