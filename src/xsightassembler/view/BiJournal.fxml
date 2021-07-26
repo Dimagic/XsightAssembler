@@ -3,10 +3,12 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.DatePicker?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.SplitPane?>
 <?import javafx.scene.control.Tab?>
 <?import javafx.scene.control.TabPane?>
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TextArea?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.layout.AnchorPane?>
@@ -22,27 +24,36 @@
         <tabs>
           <Tab fx:id="generalTab" text="General">
                <content>
-                  <AnchorPane>
-                     <children>
-                        <TableView fx:id="tRunningTests" prefHeight="200.0" prefWidth="200.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
-                           <columns>
-                              <TableColumn fx:id="labNumColumn" maxWidth="25.0" minWidth="25.0" prefWidth="25.0" text="#" />
-                              <TableColumn fx:id="netNameColumn" maxWidth="110.0" minWidth="110.0" prefWidth="110.0" text="Net name" />
-                              <TableColumn fx:id="stageColumn" maxWidth="25.0" minWidth="25.0" prefWidth="25.0" text="S" />
-                              <TableColumn fx:id="typeColumn" maxWidth="50.0" minWidth="50.0" prefWidth="50.0" text="Type" />
-                              <TableColumn fx:id="plugDateColumn" maxWidth="120.0" minWidth="120.0" prefWidth="120.0" text="Date plug" />
-                              <TableColumn fx:id="coolerColumn" maxWidth="50.0" minWidth="50.0" prefWidth="50.0" text="Clr" />
-                              <TableColumn fx:id="icrColumn" maxWidth="50.0" minWidth="50.0" prefWidth="50.0" text="ICR" />
-                              <TableColumn fx:id="ISDUflagColumn" maxWidth="60.0" minWidth="60.0" prefWidth="60.0" text="ISduFlag" />
-                              <TableColumn fx:id="snCheckColumn" maxWidth="60.0" minWidth="60.0" prefWidth="60.0" text="SN check" />
-                              <TableColumn fx:id="startDateColumn" maxWidth="120.0" minWidth="120.0" prefWidth="120.0" text="Date start" />
-                              <TableColumn fx:id="progressColumn" maxWidth="100.0" minWidth="100.0" prefWidth="100.0" text="Progress" />
-                              <TableColumn fx:id="stateColumn" minWidth="100.0" prefWidth="150.0" text="State" />
-                              <TableColumn fx:id="userColumn" maxWidth="75.0" minWidth="75.0" prefWidth="75.0" text="User" />
-                           </columns>
-                        </TableView>
-                     </children>
-                  </AnchorPane>
+                  <SplitPane dividerPositions="0.7" orientation="VERTICAL">
+                     <items>
+                        <AnchorPane minHeight="300.0">
+                           <children>
+                              <TableView fx:id="tRunningTests" prefHeight="200.0" prefWidth="200.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                                 <columns>
+                                    <TableColumn fx:id="labNumColumn" maxWidth="25.0" minWidth="25.0" prefWidth="25.0" text="#" />
+                                    <TableColumn fx:id="netNameColumn" maxWidth="110.0" minWidth="110.0" prefWidth="110.0" text="Net name" />
+                                    <TableColumn fx:id="stageColumn" maxWidth="25.0" minWidth="25.0" prefWidth="25.0" text="S" />
+                                    <TableColumn fx:id="typeColumn" maxWidth="50.0" minWidth="50.0" prefWidth="50.0" text="Type" />
+                                    <TableColumn fx:id="plugDateColumn" maxWidth="120.0" minWidth="120.0" prefWidth="120.0" text="Date plug" />
+                                    <TableColumn fx:id="coolerColumn" maxWidth="50.0" minWidth="50.0" prefWidth="50.0" text="Clr" />
+                                    <TableColumn fx:id="icrColumn" maxWidth="50.0" minWidth="50.0" prefWidth="50.0" text="ICR" />
+                                    <TableColumn fx:id="ISDUflagColumn" maxWidth="60.0" minWidth="60.0" prefWidth="60.0" text="ISduFlag" />
+                                    <TableColumn fx:id="snCheckColumn" maxWidth="60.0" minWidth="60.0" prefWidth="60.0" text="SN check" />
+                                    <TableColumn fx:id="startDateColumn" maxWidth="120.0" minWidth="120.0" prefWidth="120.0" text="Date start" />
+                                    <TableColumn fx:id="progressColumn" maxWidth="100.0" minWidth="100.0" prefWidth="100.0" text="Progress" />
+                                    <TableColumn fx:id="stateColumn" minWidth="100.0" prefWidth="150.0" text="State" />
+                                    <TableColumn fx:id="userColumn" maxWidth="75.0" minWidth="75.0" prefWidth="75.0" text="User" />
+                                 </columns>
+                              </TableView>
+                           </children>
+                        </AnchorPane>
+                        <AnchorPane prefHeight="200.0" prefWidth="200.0">
+                           <children>
+                              <TextArea fx:id="testLog" prefHeight="200.0" prefWidth="200.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+                           </children>
+                        </AnchorPane>
+                     </items>
+                  </SplitPane>
                </content>
             </Tab>
           <Tab fx:id="journalTab" text="Journal">

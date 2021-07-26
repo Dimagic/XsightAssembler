@@ -1,10 +1,11 @@
 package xsightassembler.view;
 
+import com.sun.javafx.stage.StageHelper;
 import javafx.animation.Interpolator;
 import javafx.animation.RotateTransition;
+import javafx.application.Platform;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.collections.FXCollections;
-import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.fxml.FXML;
@@ -54,6 +55,8 @@ public class BiJournalController {
 
     @FXML
     private TableView<BiTest> tCompleteJournal;
+    @FXML
+    private TextArea testLog;
     @FXML
     private DatePicker dateFrom;
     @FXML
@@ -139,6 +142,14 @@ public class BiJournalController {
     @FXML
     private void initialize() {
         tRunningTests.setTableMenuButtonVisible(true);
+
+        testLog.setEditable(false);
+        ContextMenu consoleMenu = new ContextMenu();
+        MenuItem mClear = new MenuItem("Clear console");
+        mClear.setOnAction((event) -> testLog.clear());
+        consoleMenu.getItems().addAll(mClear);
+        testLog.setContextMenu(consoleMenu);
+
         initDate();
         isShutdown = false;
 
@@ -287,13 +298,20 @@ public class BiJournalController {
             MenuItem mi3 = new MenuItem("Delete item");
             mi3.setOnAction((event) -> {
                 BiTestWorker btw = row.getItem();
+                String netName = btw.getBiTest().getNetNameProperty().getValue();
                 if (btw.getBiTest() != null) {
                     if (btw.getStartDate() != null) {
                         MsgBox.msgInfo("You can't delete started test");
                     } else {
-                        if (MsgBox.msgConfirm(String.format("Delete system %s from lab station?",
-                                btw.getBiTest().getNetNameProperty().getValue()))) {
+                        if (MsgBox.msgConfirm(String.format("Delete system %s from lab station?", netName))) {
                             try {
+                                // close stage if open
+                                for (Stage stage: StageHelper.getStages()) {
+                                    if (stage.getTitle().contains(netName)) {
+                                        stage.hide();
+                                        break;
+                                    }
+                                }
                                 testService.delete(btw.getBiTest());
                                 btw.setBiTest(null);
                                 refreshJournal();
@@ -337,12 +355,12 @@ public class BiJournalController {
                 }
         );
 
-        runningTestList.addListener(new ListChangeListener<BiTestWorker>() {
-            @Override
-            public void onChanged(Change<? extends BiTestWorker> change) {
-                System.out.println("Selection changed: " + change.getList());
-            }
-        });
+//        runningTestList.addListener(new ListChangeListener<BiTestWorker>() {
+//            @Override
+//            public void onChanged(Change<? extends BiTestWorker> change) {
+//                System.out.println("Selection changed: " + change.getList());
+//            }
+//        });
 
         tRunningTests.setItems(runningTestList);
         fillTable();
@@ -549,7 +567,8 @@ public class BiJournalController {
             biTest.setStage(Integer.parseInt(stage));
             biTest.setUser(mainApp.getCurrentUser());
             testService.save(biTest);
-            getBtwByLabNum(labNum).setBiTest(biTest);
+            runningTestList.stream().filter(e -> e.getLabNum() == labNum).findFirst().get().setBiTest(biTest);
+//            getBtwByLabNum(labNum).setBiTest(biTest);
             tRunningTests.refresh();
         } catch (CustomException | IOException e) {
             LOGGER.error("Exception", e);
@@ -652,7 +671,6 @@ public class BiJournalController {
             if (btw.getLabNum() == labNum) return btw;
         }
         BiTestWorker btw = new BiTestWorker(labNum, this);
-        btw.setMainApp(mainApp);
         return btw;
     }
 
@@ -661,6 +679,19 @@ public class BiJournalController {
             if (t.getName().equals(threadName)) return t;
         }
         return null;
+    }
+
+    public synchronized void writeTestLog(BiTestWorker btw, String value) {
+        String s = String.format("%s: Lab#%s %s: %s", Utils.getFormattedTime(new Date()), btw.getLabNum(),
+                btw.getBiNetName().getValue(), value.trim());
+        Runnable update = () -> {
+            testLog.appendText(s + "\n");
+        };
+        if (Platform.isFxApplicationThread()) {
+            update.run();
+        } else {
+            Platform.runLater(update);
+        }
     }
 
     public boolean getShutdown() {
@@ -674,6 +705,10 @@ public class BiJournalController {
 
     public void setMainApp(MainApp mainApp) {
         this.mainApp = mainApp;
+    }
+
+    public MainApp getMainApp() {
+        return mainApp;
     }
 
     public void setStage(Stage stage) {

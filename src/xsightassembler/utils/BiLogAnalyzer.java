@@ -24,6 +24,7 @@ import java.util.regex.Matcher;
 public class BiLogAnalyzer extends Task<FilteredList<LogItem>> {
     Logger LOGGER = LogManager.getLogger(this.getClass().getName());
     private BiTest biTest;
+    private BiTestWorker btw;
     private File[] files;
     private final SimpleDateFormat formatter = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS");
     private final ObservableList<LogItem> logData = FXCollections.observableArrayList();
@@ -33,8 +34,9 @@ public class BiLogAnalyzer extends Task<FilteredList<LogItem>> {
     private Ssh ssh;
 
 
-    public BiLogAnalyzer(BiTest biTest) {
+    public BiLogAnalyzer(BiTest biTest, BiTestWorker btw) {
         this.biTest = biTest;
+        this.btw = btw;
     }
 
     public BiLogAnalyzer(List<File> filesList) {
@@ -114,7 +116,7 @@ public class BiLogAnalyzer extends Task<FilteredList<LogItem>> {
                     LogItem logItem;
                     if (line.contains("CSampler: Performing monthly IBIT")) {
                         isIbit = true;
-                    } else if (line.contains("CSampler: Performing PBIT")) {
+                    } else if (line.contains("PBIT")) {
                         errType = "PBIT";
                     } else if (line.contains("BitReport:")) {
                         errType = "BitReport";
@@ -153,7 +155,9 @@ public class BiLogAnalyzer extends Task<FilteredList<LogItem>> {
                 }
 
             }
-            System.out.println("Log size: " + allLines.size() + " items count: " + logData.size());
+            if (btw != null) {
+                btw.writeConsole("Log size: " + allLines.size() + " items count: " + logData.size());
+            }
             return new FilteredList<>(logData);
         } catch (IOException | ParseException e) {
             LOGGER.error("Exception", e);

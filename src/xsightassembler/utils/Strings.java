@@ -11,7 +11,7 @@ import java.util.regex.Pattern;
 public class Strings {
     static Logger LOGGER = LogManager.getLogger(Strings.class);
     public static String appName = "Xsight-assembler";
-    public static String VERSION = "0.0.4.3";
+    public static String VERSION = "0.0.4.5";
     public static String appNameWithVer = String.format("%s v%s %s", appName, VERSION, Utils.getComputerName());
 
     public static String manufISDUHModule = "XSTXT0010000500";
@@ -94,6 +94,7 @@ public class Strings {
         commands.put(1, "Open PuTTY");
         commands.put(2, "Video stream (VLC)");
         commands.put(3, "Video stream (custom)");
+//        commands.put(4, "Door test");
         return commands;
     }
 
