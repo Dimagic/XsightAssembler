@@ -20,20 +20,15 @@ import jcifs.smb.NtlmPasswordAuthentication;
 import jcifs.smb.SmbFile;
 import jcifs.smb.SmbFileOutputStream;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.time.DateUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.controlsfx.validation.Severity;
-import org.controlsfx.validation.ValidationResult;
-import org.controlsfx.validation.ValidationSupport;
-import org.controlsfx.validation.Validator;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 import sun.misc.BASE64Decoder;
 import sun.misc.BASE64Encoder;
-import xsightassembler.models.History;
 import xsightassembler.models.LogItem;
-import xsightassembler.models.User;
 import xsightassembler.services.*;
 
 import javax.crypto.*;
@@ -50,14 +45,11 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.text.SimpleDateFormat;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -176,10 +168,16 @@ public class Utils {
         return null;
     }
 
-    public static LocalDateTime dateToLocalDate(Date date) {
+    public static LocalDateTime dateToLocalDateTime(Date date) {
         return date.toInstant()
                 .atZone(ZoneId.systemDefault())
                 .toLocalDateTime();
+    }
+
+    public static LocalDate dateToLocalDate(Date date) {
+        return date.toInstant()
+                .atZone(ZoneId.systemDefault())
+                .toLocalDate();
     }
 
     public static String formatHMSM(Number n) {
@@ -775,4 +773,25 @@ public class Utils {
         });
     }
 
+    public static String fixedLengthString(String string, int length) {
+        return String.format("%1$"+length+ "s", string);
+    }
+
+    public static int getBitNeedCount(Date start) {
+        return getBitNeedCount(start, new Date());
+    }
+
+    public static int getBitNeedCount(Date start, Date stop) {
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(start);
+        int res = 0;
+        while (start.getTime() <= stop.getTime()) {
+             if (calendar.get(Calendar.MINUTE) % 30 == 0) {
+                 res++;
+             }
+            start = DateUtils.addMinutes(start, 1);
+            calendar.setTime(start);
+        }
+        return res;
+    }
 }
