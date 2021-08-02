@@ -121,6 +121,7 @@ public class AllInOneAssemblerController {
 
     @FXML
     private void initialize() {
+        historyBtn.setDisable(true);
         try {
             pSysTypeMap = new IniUtils("strings.ini").getPatternMapByName("pManufIsduh");
             if (pSysTypeMap.isEmpty()) {
@@ -596,7 +597,7 @@ public class AllInOneAssemblerController {
 
     public void setIsduhSystem(Isduh isduh) {
         this.isduh = isduh;
-        historyBtn.setVisible(isduh.isHistoryPresent());
+        historyBtn.setDisable(!isduh.isHistoryPresent());
         stage.setTitle("Assembly system SN: " + isduh.getSn());
         disableFieldsByType();
         // getting patterns by system type
@@ -751,11 +752,7 @@ public class AllInOneAssemblerController {
     }
 
     private void getHistory() {
-//        HistoryService service = new HistoryService();
-//        List<History> historyList = service.findById()
         mainApp.showHistoryView(isduh, stage);
-//        isduh.getModulesList().forEach(System.out::println);
-//        System.out.println(fieldHistorySet);
     }
 
     public void setMainController(AssemblyJournalController assemblyJournalController) {

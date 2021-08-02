@@ -387,6 +387,9 @@ public class Isduh {
     }
 
     public boolean isHistoryPresent() {
+        if (getHistorySet().size() > 0) {
+            return true;
+        }
         for (Object module: getModulesList()) {
             if (module != null) {
                 try {
