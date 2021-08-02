@@ -15,6 +15,8 @@ import xsightassembler.services.UpperSensorModuleService;
 import xsightassembler.view.BiJournalController;
 
 import java.io.IOException;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.regex.Matcher;
@@ -41,11 +43,12 @@ public class BiTestWorker extends Task<Void> {
     private SshClient sshClient;
     private boolean isSerialsChecked = false;
     private boolean isISduFlag = false;
+    private boolean isSamplerStarted = false;
     private boolean ibitCountError = false;
     private int onlineStatus;
     private IniUtils iniCmd;
     private IniUtils iniSettings;
-    private final Map<String, Boolean> checkSerialsMap = new HashMap<>();
+    private Set<String> checkSerialsSet = new HashSet<>();
 
     public BiTestWorker(Integer labNum, BiJournalController controller) {
         this.labNum = labNum;
@@ -91,7 +94,8 @@ public class BiTestWorker extends Task<Void> {
                 if (onlineStatus != 1) {
                     isSerialsChecked = false;
                     isISduFlag = false;
-                    checkSerialsMap.clear();
+                    isSamplerStarted = false;
+                    checkSerialsSet.clear();
                     controller.refreshJournal();
                 }
                 switch (onlineStatus) {
@@ -100,7 +104,7 @@ public class BiTestWorker extends Task<Void> {
                         if (biTest.getStartDate() != null) {
                             logAnalyzerTask(TimeUnit.MILLISECONDS.toMinutes(durationTime));
                         }
-                        if (!isSerialsChecked || !isISduFlag) {
+                        if (!isSerialsChecked || !isISduFlag || !isSamplerStarted) {
                             isSerialsChecked = checkSerials();
                             Thread.sleep(1000);
                             controller.refreshJournal();
@@ -286,9 +290,10 @@ public class BiTestWorker extends Task<Void> {
             queue.add(biTest);
         }
         this.sshClient = null;
-        this.checkSerialsMap.clear();
+        this.checkSerialsSet.clear();
         this.isSerialsChecked = false;
         this.isISduFlag = false;
+        this.isSamplerStarted = false;
         this.biTest = biTest;
         clearMessagesAndLogs();
         updateCurrentMessage();
@@ -411,19 +416,21 @@ public class BiTestWorker extends Task<Void> {
             writeConsole("Can't get system uptime");
             return false;
         }
+        isSamplerStarted = checkSampler(uptime);
+
         writeConsole("Checking serials. Uptime is: " + Utils.formatHMSM(uptime));
         isISduFlag = checkISduFlag();
         return writeComExSN() && writeMac() && writeFlashSn() && writeUpperSn();
     }
 
     private boolean checkISduFlag() {
-        if (checkSerialsMap.get("ISduFlag") != null && checkSerialsMap.get("ISduFlag")) {
+        if (checkSerialsSet.contains("ISduFlag")) {
             return true;
         }
         String flag = sendSshCommand("getIsduFlag");
         if (flag != null && !flag.isEmpty()) {
             boolean res = flag.trim().equals("1");
-            checkSerialsMap.put("ISduFlag", res);
+            checkSerialsSet.add("ISduFlag");
             writeConsole(String.format("%-10s: %s", "ISduFlag", res));
             return res;
         } else {
@@ -433,7 +440,7 @@ public class BiTestWorker extends Task<Void> {
     }
 
     private boolean writeComExSN() {
-        if (checkSerialsMap.get("ComExSn") != null && checkSerialsMap.get("ComExSn")) {
+        if (checkSerialsSet.contains("ComExSn")) {
             return true;
         }
         String sn = sendSshCommand("getComExSn");
@@ -445,10 +452,10 @@ public class BiTestWorker extends Task<Void> {
                 boolean res = new BowlModuleService().saveOrUpdate(bowlModule);
                 if (res) {
                     writeConsole(String.format("%-10s: %s", "ComEx SN", sn));
+                    checkSerialsSet.add("ComExSn");
                 } else {
                     writeConsole("Can't save bowl module");
                 }
-                checkSerialsMap.put("ComExSn", res);
                 return res;
             } catch (CustomException e) {
                 LOGGER.error("writeComExSN", e);
@@ -460,7 +467,7 @@ public class BiTestWorker extends Task<Void> {
     }
 
     private boolean writeFlashSn() {
-        if (checkSerialsMap.get("FlashSn") != null && checkSerialsMap.get("FlashSn")) {
+        if (checkSerialsSet.contains("FlashSn")) {
             return true;
         }
         String sn = null;
@@ -475,10 +482,10 @@ public class BiTestWorker extends Task<Void> {
                 boolean res = new BowlModuleService().saveOrUpdate(bowlModule);
                 if (res) {
                     writeConsole(String.format("%-10s: %s", "Flash SN", sn));
+                    checkSerialsSet.add("FlashSn");
                 } else {
                     writeConsole("Can't save bowl module");
                 }
-                checkSerialsMap.put("FlashSn", res);
                 return res;
             } catch (CustomException e) {
                 LOGGER.error("writeFlashSn", e);
@@ -489,7 +496,7 @@ public class BiTestWorker extends Task<Void> {
     }
 
     private boolean writeMac() {
-        if (checkSerialsMap.get("MacAddress") != null && checkSerialsMap.get("MacAddress")) {
+        if (checkSerialsSet.contains("MacAddress")) {
             return true;
         }
         String mac = sendSshCommand("getMacAddress");
@@ -501,10 +508,10 @@ public class BiTestWorker extends Task<Void> {
                 boolean res = new BowlModuleService().saveOrUpdate(bowlModule);
                 if (res) {
                     writeConsole(String.format("%-10s: %s", "MAC", mac));
+                    checkSerialsSet.add("MacAddress");
                 } else {
                     writeConsole("Can't save bowl module");
                 }
-                checkSerialsMap.put("MacAddress", res);
                 return res;
             } catch (CustomException e) {
                 LOGGER.error("writeFlashSn", e);
@@ -515,7 +522,7 @@ public class BiTestWorker extends Task<Void> {
     }
 
     private boolean writeUpperSn() {
-        if (checkSerialsMap.get("UpperSn") != null && checkSerialsMap.get("UpperSn")) {
+        if (checkSerialsSet.contains("UpperSn")) {
             return true;
         }
         String sn;
@@ -551,7 +558,7 @@ public class BiTestWorker extends Task<Void> {
                         if (tmpIsduh != null) {
                             if (tmpIsduh.getId().equals(currentIsduh.getId())) {
                                 writeConsole(String.format("%-10s: %s", "Upper SN", sn));
-                                checkSerialsMap.put("UpperSn", true);
+                                checkSerialsSet.add("UpperSn");
                                 return true;
                             } else {
                                 // if in another system - add history
@@ -579,7 +586,7 @@ public class BiTestWorker extends Task<Void> {
                         forSave.add(currentIsduh);
                         isduhService.saveOrUpdate(forSave);
                         writeConsole(String.format("%-10s: %s", "Upper SN", sn));
-                        checkSerialsMap.put("UpperSn", true);
+                        checkSerialsSet.add("UpperSn");
                         return true;
                     }
 
@@ -587,7 +594,7 @@ public class BiTestWorker extends Task<Void> {
                     currentIsduh.setUpperSensorModule(upperSensorModule);
                     isduhService.saveOrUpdate(currentIsduh);
                     writeConsole(String.format("%1$-15s: s", "Upper SN", sn));
-                    checkSerialsMap.put("UpperSn", true);
+                    checkSerialsSet.add("UpperSn");
                     return true;
                 } catch (CustomException e) {
                     LOGGER.error("writeUpperSn", e);
@@ -597,6 +604,36 @@ public class BiTestWorker extends Task<Void> {
                 writeConsole("Upper SN got string: " + sn);
             }
         }
+        return false;
+    }
+
+    private boolean checkSampler(long uptime) {
+        // ToDo: checkSerialsMap
+        if (checkSerialsSet.contains("isSamplerStarted")) {
+            return true;
+        }
+        String samplerString = sendSshCommand("getSamplerStarted");
+        if (samplerString != null) {
+            Pattern p = Pattern.compile("(\\d{4}/\\d{2}/\\d{2}\\s\\d{2}:\\d{2}:\\d{2})");
+            Matcher m = p.matcher(samplerString.trim());
+            if (m.find()) {
+                try {
+                    long systemStart = new Date().getTime() - uptime;
+                    SimpleDateFormat formatter = new SimpleDateFormat("yyyy/M/dd hh:mm:ss");
+                    formatter.setTimeZone(TimeZone.getTimeZone("Asia/Jerusalem"));
+                    long samplerStart = formatter.parse(m.group(0)).getTime();
+                    if (samplerStart > systemStart) {
+                        writeConsole(String.format("Time work of sampler: %s",
+                                Utils.formatHMSM(new Date().getTime() - samplerStart)));
+                        checkSerialsSet.add("isSamplerStarted");
+                    }
+                } catch (ParseException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+
         return false;
     }
 
