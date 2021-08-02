@@ -65,8 +65,6 @@ public class AssemblyJournalController {
     private ImageView refreshImg;
     @FXML
     private TextField filterField;
-    //    @FXML
-//    private Button newBtn;
     @FXML
     private Button allInOneBtn;
     @FXML
@@ -105,12 +103,14 @@ public class AssemblyJournalController {
         moduleNameCombo.getSelectionModel().selectFirst();
 
         tIsduh.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+
         tIsduh.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
 
 
         tIsduh.setRowFactory(this::rowFactoryTab);
         TableColumn numberCol = new TableColumn("#");
         numberCol.setMinWidth(20);
+        numberCol.setMaxWidth(40);
         numberCol.setCellValueFactory(new Callback<TableColumn.CellDataFeatures<Isduh, Isduh>, ObservableValue<Isduh>>() {
             @Override
             public ObservableValue<Isduh> call(TableColumn.CellDataFeatures<Isduh, Isduh> p) {
@@ -187,7 +187,6 @@ public class AssemblyJournalController {
         });
 
         Utils.initDatePicker(dateFrom, dateTo);
-//        newBtn.setOnAction(e -> showNewIsduhEditorView());
         allInOneBtn.setOnAction(e -> mainApp.showAllInOneAssemblerView(null));
         palletBtn.setOnAction(e -> mainApp.showPalletView());
     }
@@ -264,6 +263,7 @@ public class AssemblyJournalController {
             } else {
                 tIsduh.setItems(getFilteredByStatus(status));
             }
+
             tIsduh.refresh();
         } catch (CustomException e) {
             LOGGER.error("Exception", e);
