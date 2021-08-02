@@ -6,6 +6,7 @@ import javafx.animation.RotateTransition;
 import javafx.application.Platform;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.fxml.FXML;
@@ -49,6 +50,8 @@ public class BiJournalController {
     private Stage stage;
     private boolean isShutdown;
     private final ObservableList<BiTestWorker> runningTestList = FXCollections.observableArrayList();
+    private final ObservableList<String> logList = FXCollections.observableArrayList();
+    private final FilteredList<String> filteredList = new FilteredList<>(logList);
     private FilteredList<BiTest> completeFilteredList;
 
     private BiTestWorker btw;
@@ -146,7 +149,7 @@ public class BiJournalController {
         testLog.setEditable(false);
         ContextMenu consoleMenu = new ContextMenu();
         MenuItem mClear = new MenuItem("Clear console");
-        mClear.setOnAction((event) -> testLog.clear());
+        mClear.setOnAction((event) -> logList.clear());
         consoleMenu.getItems().addAll(mClear);
         testLog.setContextMenu(consoleMenu);
 
@@ -191,8 +194,6 @@ public class BiJournalController {
         startDateColumn.setCellValueFactory(cellData -> cellData.getValue().getStartDateString());
         userColumn.setCellValueFactory(cellDate -> cellDate.getValue().getUserLogin());
 
-
-
         stateColumn.setCellValueFactory(new PropertyValueFactory<>("message"));
 
         setPassFailCellFactory(coolerColumn);
@@ -208,18 +209,19 @@ public class BiJournalController {
                 if (!empty) {
                     try {
                         BiTestWorker btw = (BiTestWorker) this.getTableRow().getItem();
-                        bar.setStyle("-fx-accent: #0096C9");
-                        if (progress == 1.0) {
+                        if (progress == -1) {
+                            bar.setStyle("-fx-accent: #0096C9");
+                        } else if (progress == 1.0) {
                             if (btw.getStartDate() == null) {
                                 bar.setStyle("-fx-accent: yellow");
                             } else {
-                                if (btw.isTestFail()) {
+                                if (btw.isTestFail() || btw.isIbitCountError()) {
                                     bar.setStyle("-fx-accent: red");
                                 } else {
                                     bar.setStyle("-fx-accent: palegreen");
                                 }
                             }
-                        } else if (btw.isTestFail()) {
+                        } else if (btw.isTestFail() || btw.isIbitCountError()) {
                             bar.setStyle("-fx-accent: orange");
                         }
                     } catch (NullPointerException ignored) {
@@ -238,7 +240,6 @@ public class BiJournalController {
         stageComplete.setCellValueFactory(cellData -> cellData.getValue().getStageProperty());
         statusComplete.setCellValueFactory(cellData -> cellData.getValue().getStatusProperty());
         commentComplete.setCellValueFactory(cellData -> cellData.getValue().getCommentProperty());
-
         userComplete.setCellValueFactory(cellDate -> cellDate.getValue().getUserProperty());
 
         columnNumberComplete.setCellValueFactory(column -> new ReadOnlyObjectWrapper<>(tCompleteJournal.
@@ -250,9 +251,20 @@ public class BiJournalController {
 
         filterField.textProperty().addListener((observable, oldValue, newValue) -> filter(newValue));
 
-
+        // Log console init
         tRunningTests.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
             btw = newSelection;
+            if (newSelection.getBiTest() != null) {
+                filteredList.setPredicate(c -> c.contains(newSelection.getBiNetName().getValue()));
+            } else {
+                logList.removeIf(s -> s.contains(String.format("Lab#%s", newSelection.getLabNum())));
+                testLog.clear();
+            }
+        });
+
+        filteredList.addListener((ListChangeListener<String>) change -> {
+            testLog.clear();
+            filteredList.forEach(c -> testLog.appendText(c));
         });
 
         tCompleteJournal.setRowFactory(tv -> {
@@ -306,7 +318,7 @@ public class BiJournalController {
                         if (MsgBox.msgConfirm(String.format("Delete system %s from lab station?", netName))) {
                             try {
                                 // close stage if open
-                                for (Stage stage: StageHelper.getStages()) {
+                                for (Stage stage : StageHelper.getStages()) {
                                     if (stage.getTitle().contains(netName)) {
                                         stage.hide();
                                         break;
@@ -323,8 +335,15 @@ public class BiJournalController {
                     }
                 }
             });
+            MenuItem mi4 = new MenuItem("Open assembler");
+            mi4.setOnAction((event) -> {
+                Isduh isduh = row.getItem().getIsduh();
+                if (isduh != null) {
+                    mainApp.showAllInOneAssemblerView(isduh);
+                }
+            });
 
-            cm.getItems().addAll(mi1, mi2, mi3);
+            cm.getItems().addAll(mi1, mi2, mi3, mi4);
             row.setOnMouseClicked(event -> {
                 if (event.getButton() == MouseButton.SECONDARY && !row.isEmpty() && row.getItem().getIsduh() != null) {
                     cm.show(tRunningTests, event.getScreenX(), event.getScreenY());
@@ -413,7 +432,7 @@ public class BiJournalController {
     }
 
     public void refreshJournal() {
-        for (BiTestWorker btw: runningTestList) {
+        for (BiTestWorker btw : runningTestList) {
             if (btw.getBiTest() != null && btw.getBiTest().getUnplugDate() != null) {
                 btw.setBiTest(null);
             }
@@ -682,10 +701,11 @@ public class BiJournalController {
     }
 
     public synchronized void writeTestLog(BiTestWorker btw, String value) {
-        String s = String.format("%s: Lab#%s %s: %s", Utils.getFormattedTime(new Date()), btw.getLabNum(),
+        String s = String.format("%s Lab#%s %s: %s", Utils.getFormattedTime(new Date()), btw.getLabNum(),
                 btw.getBiNetName().getValue(), value.trim());
         Runnable update = () -> {
-            testLog.appendText(s + "\n");
+//            testLog.appendText(s + "\n");
+            logList.add(s + "\n");
         };
         if (Platform.isFxApplicationThread()) {
             update.run();
