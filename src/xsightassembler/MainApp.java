@@ -43,7 +43,8 @@ public class MainApp extends Application {
     private AssemblyJournalController assemblyJournalController;
     private BiJournalController biJournalController;
     private User currentUser;
-    private HashMap<String, Stage> testViewMap = new HashMap<>();
+    private final HashMap<String, Stage> testViewMap = new HashMap<>();
+    private final HashMap<String, Stage> assemblyViewMap = new HashMap<>();
 
 
     @Override
@@ -60,7 +61,6 @@ public class MainApp extends Application {
             if (biJournalController != null) {
                 biJournalController.shutdown();
             }
-
             try {
                 FileUtils.cleanDirectory(new File("./tmp"));
             } catch (NullPointerException | IllegalArgumentException ignored) {
@@ -189,24 +189,34 @@ public class MainApp extends Application {
 
     public void showAllInOneAssemblerView(Isduh isduh) {
         try {
-            FXMLLoader loader = new FXMLLoader();
-            loader.setLocation(getClass().getClassLoader().getResource("AllInOneAssemblerView.fxml"));
-            AnchorPane page = loader.load();
-            Stage stage = new Stage();
-            stage.getIcons().add(favicon);
-            stage.initModality(Modality.WINDOW_MODAL);
-            stage.initOwner(assemblyStage);
-            Scene scene = new Scene(page);
-            stage.setScene(scene);
-            stage.setResizable(false);
-            AllInOneAssemblerController controller = loader.getController();
-            controller.setMainApp(this);
-            controller.setStage(stage);
-            controller.setMainController(assemblyJournalController);
-            if (isduh != null) {
-                controller.setIsduhSystem(isduh);
+            if (isduh != null && assemblyViewMap.get(isduh.getSn()) != null) {
+                assemblyViewMap.get(isduh.getSn()).requestFocus();
+            } else {
+                FXMLLoader loader = new FXMLLoader();
+                loader.setLocation(getClass().getClassLoader().getResource("AllInOneAssemblerView.fxml"));
+                AnchorPane page = loader.load();
+                Stage stage = new Stage();
+                stage.getIcons().add(favicon);
+                stage.initModality(Modality.WINDOW_MODAL);
+                stage.initOwner(assemblyStage);
+                Scene scene = new Scene(page);
+                stage.setScene(scene);
+                stage.setResizable(false);
+                AllInOneAssemblerController controller = loader.getController();
+                controller.setMainApp(this);
+                controller.setStage(stage);
+                controller.setMainController(assemblyJournalController);
+                if (isduh != null) {
+                    controller.setIsduhSystem(isduh);
+                    stage.addEventHandler(WindowEvent.WINDOW_SHOWN, e -> {
+                        assemblyViewMap.put(isduh.getSn(), stage);
+                    });
+                    stage.addEventHandler(WindowEvent.WINDOW_HIDDEN, e -> {
+                        assemblyViewMap.remove(isduh.getSn());
+                    });
+                }
+                stage.showAndWait();
             }
-            stage.showAndWait();
         } catch (IOException e) {
             LOGGER.error("Exception", e);
             MsgBox.msgException(e);

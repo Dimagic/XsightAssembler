@@ -62,13 +62,14 @@ public class SshClient {
             session.setPassword(password);
 
             writeBtcConsole("Connecting SSH to " + hostname + " - Please wait for few seconds... ");
+            session.setTimeout(3000);
             session.connect(3000);
             writeBtcConsole("Connected!");
         } catch (Exception e) {
-            if (e.getCause().toString().contains("UnknownHostException")){
+            if (e.getCause().toString().contains("UnknownHostException")) {
                 writeBtcConsole("Unknown host: " + hostname);
                 return null;
-            }else if (e.getCause().toString().contains("Connection timed out")){
+            } else if (e.getCause().toString().contains("Connection timed out")) {
                 writeBtcConsole("Connection lost. Retry after 30 seconds.");
                 try {
                     Thread.sleep(30000);
@@ -232,6 +233,40 @@ public class SshClient {
         return null;
     }
 
+    public String getUpperSensorSn() {
+        try {
+            String sn = execSingleCommand("/opt/Xsight/Fodetect/app/bin/MCUMonitor /dev/ttyUSB0 ReadSerial").trim();
+            if (!sn.isEmpty()) {
+                return String.format("AM%s", sn);
+            }
+        } catch (IOException | JSchException e) {
+            MsgBox.msgError(e.getLocalizedMessage());
+        }
+        return null;
+    }
+
+    public void setDoorPosition(int i) {
+        try {
+            List<String> cmdList = new ArrayList<>();
+            switch (i) {
+                case 0:
+                    cmdList.add("/opt/Xsight/Fodetect/app/bin/MCUMonitor /dev/ttyUSB0 disc 14");
+                    cmdList.add("/opt/Xsight/Fodetect/app/bin/MCUMonitor /dev/ttyUSB0 Status");
+                    executeCommands(cmdList);
+                    cmdList.clear();
+                    break;
+                case 1:
+                    cmdList.add("/opt/Xsight/Fodetect/app/bin/MCUMonitor /dev/ttyUSB0 disc 15");
+                    cmdList.add("/opt/Xsight/Fodetect/app/bin/MCUMonitor /dev/ttyUSB0 Status");
+                    executeCommands(cmdList);
+                    cmdList.clear();
+                    break;
+            }
+        } catch (CustomException e) {
+            MsgBox.msgError(e.getLocalizedMessage());
+        }
+    }
+
     public void setISduFlag(int flag) {
         try {
             execSingleCommand(String.format("/opt/Xsight/Fodetect/app/bin/PDUEep -w ISduFlag -d %s", flag));
@@ -288,7 +323,7 @@ public class SshClient {
                     channelSftp.get(entry.getFilename(), destDir);
                 }
             }
-            String msg = tmp.size() > 0 ? String.format("Downloading %s files complete", tmp.size()):
+            String msg = tmp.size() > 0 ? String.format("Downloading %s files complete", tmp.size()) :
                     "Files for downloading not found";
             MsgBox.msgInfo(msg);
         } catch (Exception e) {
@@ -335,9 +370,4 @@ public class SshClient {
         }
     }
 
-    public void close() {
-        channel.disconnect();
-        session.disconnect();
-        writeBtcConsole("Disconnected channel and session");
-    }
 }

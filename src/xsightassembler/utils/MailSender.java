@@ -1,24 +1,20 @@
 package xsightassembler.utils;
 
-import java.io.*;
-import java.net.InetAddress;
-import java.util.Arrays;
-import java.util.Properties;
-import java.util.Date;
-import java.util.stream.Stream;
+import javafx.collections.ObservableList;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import xsightassembler.models.MailAddress;
 
 import javax.activation.DataHandler;
 import javax.activation.DataSource;
 import javax.activation.FileDataSource;
 import javax.mail.*;
-
-import javax.mail.internet.*;
-
-import com.sun.mail.smtp.*;
-import javafx.collections.ObservableList;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import xsightassembler.models.MailAddress;
+import javax.mail.internet.InternetAddress;
+import javax.mail.internet.MimeBodyPart;
+import javax.mail.internet.MimeMessage;
+import javax.mail.internet.MimeMultipart;
+import java.io.File;
+import java.util.Properties;
 
 public class MailSender {
     Logger LOGGER = LogManager.getLogger(this.getClass().getName());
@@ -33,13 +29,16 @@ public class MailSender {
         this.settings = settings;
         this.prop = new Properties();
         prop.put("mail.smtp.host", settings.getMailServer());
+        prop.put("mail.smtp.ssl.trust", settings.getMailServer());
         prop.put("mail.smtp.port", settings.getMailPort());
-        prop.put("mail.smtp.auth", settings.isSslAuth());
+        prop.put("mail.smtp.starttls.enable", settings.isSslAuth());
+        prop.put("mail.smtp.auth", "true");
         prop.put("mail.smtp.socketFactory.port", settings.getMailPort());
-        prop.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
+        prop.put("mail.smtp.socketFactory.class","javax.net.ssl.SSLSocketFactory");
+        prop.put("mail.smtp.socketFactory.fallback", "false");
+
         username = settings.getMailUser();
         password = settings.getMailPass();
-
     }
 
     public void sendFile(String subject, String textMsg, ObservableList<MailAddress> addressList, File f) {
