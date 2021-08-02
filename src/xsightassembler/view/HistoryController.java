@@ -37,6 +37,7 @@ public class HistoryController {
         addHistoryColumnTab("Field", "getFieldChange");
         addHistoryColumnTab("Old value", "getOldValue");
         addHistoryColumnTab("New value", "getNewValue");
+        addHistoryColumnTab("Comment", "getComment");
         addHistoryColumnTab("User", "getUserLogin");
     }
 
@@ -90,12 +91,19 @@ public class HistoryController {
                 sn = (String) module.getClass().getMethod("getSn").invoke(module);
                 typeModule = "system";
                 List<Object> tmp = (List<Object>) module.getClass().getMethod("getModulesList").invoke(module);
+                Isduh isduh = (Isduh) module;
+                tmp.addAll(isduh.getHistorySet());
                 for (Object o: tmp) {
                     if (o != null) {
-                        Set<History> hSet = (Set<History>) o.getClass().getMethod("getHistorySet").invoke(o);
-                        if (hSet != null && hSet.size() > 0) {
-                            this.historySet.addAll(hSet);
+                        if (o instanceof History) {
+                            this.historySet.add((History) o);
+                        } else {
+                            Set<History> hSet = (Set<History>) o.getClass().getMethod("getHistorySet").invoke(o);
+                            if (hSet != null && hSet.size() > 0) {
+                                this.historySet.addAll(hSet);
+                            }
                         }
+
                     }
                 }
             } else {

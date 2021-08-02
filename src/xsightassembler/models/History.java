@@ -59,6 +59,9 @@ public class History implements Comparable<History>{
     private String oldValue;
 
     public String getOldValue() {
+        if (oldValue == null){
+            return "";
+        }
         return oldValue;
     }
 
@@ -66,15 +69,32 @@ public class History implements Comparable<History>{
         this.oldValue = oldValue;
     }
 
-    @Column(nullable = false, length = 128)
+    @Column(length = 128)
     private String newValue;
 
     public String getNewValue() {
+        if (newValue == null){
+            return "";
+        }
         return newValue;
     }
 
     public void setNewValue(String newValue) {
         this.newValue = newValue;
+    }
+
+    @Column(name = "comment")
+    private String comment;
+
+    public String getComment() {
+        if (comment == null) {
+            return "";
+        }
+        return comment;
+    }
+
+    public void setComment(String comment) {
+        this.comment = comment;
     }
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
