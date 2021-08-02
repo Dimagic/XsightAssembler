@@ -26,6 +26,8 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.zip.ZipOutputStream;
 
 public class BiTestController {
@@ -202,7 +204,6 @@ public class BiTestController {
         });
 
         startTimer();
-
     }
 
     private void addBiTestNote(String s) {
@@ -261,23 +262,31 @@ public class BiTestController {
                     "Please check connection and try again", isduhNetName));
             return;
         }
+        if (Utils.getSettings() == null || Utils.getSettings().getLogFolder() == null) {
+            MsgBox.msgInfo("Can't get settings or log folder not specified.\n" +
+                    "Please check settings and try again.");
+            return;
+        }
         try {
             SshClient jssh = new SshClient(isduhNetName, settings.getSshUser(),
                     settings.getSshPass(), controller);
             if (jssh.getSession() == null) {
                 return;
             }
-//            SSHUtils jssh = new SSHUtils(isduhNetName, settings);
 
             String systemFolder = String.format("%s (Lab#%s stage#%s start#%s)", isduhNetName,
                     btw.getLabNumString().getValue(), btw.getStageString().getValue(),
                     btw.getStartDateString().getValue().replace(":", "_"));
-            String destFolder = String.format("%s%s\\%s\\", Utils.getSettings().getLogFolder(),
+            Calendar calendar = Calendar.getInstance();
+            calendar.setTime(new Date());
+            int year = calendar.get(Calendar.YEAR);
+            int month = calendar.get(Calendar.MONTH) + 1;
+
+            String destFolder = String.format("%s%s\\%s\\%s\\%s\\", Utils.getSettings().getLogFolder(), year, month,
                     Utils.getFormattedDateForFolder(new Date()), systemFolder);
             Files.createDirectories(Paths.get(destFolder));
             jssh.downloadLogFiles(Utils.getSettings().getSftpFolder(), destFolder);
-            jssh.close();
-            zipLogs(destFolder);
+//            zipLogs(destFolder);
         } catch (IOException e) {
             LOGGER.error("runLogAnalyzer", e);
             MsgBox.msgException(e);
@@ -383,7 +392,6 @@ public class BiTestController {
     }
 
     private void sendCommand(Integer cmdId) {
-        SshClient jssh;
         switch (cmdId) {
             case 1:
                 try {
@@ -416,6 +424,18 @@ public class BiTestController {
 //                player.saveToFile();
                 player.getVideo();
                 break;
+            case 4:
+                SshClient sshClient = new SshClient(getBiTest().getNetNameProperty().getValue(),
+                        settings.getSshUser(), settings.getSshPass(), null);
+                while (!isShutdown) {
+                    try {
+                        sshClient.setDoorPosition(0);
+                        Thread.sleep(5000);
+                        sshClient.setDoorPosition(1);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
         }
     }
 
@@ -437,7 +457,6 @@ public class BiTestController {
                 addBiTestNote("Test was restarted at " + Utils.getFormattedDate(new Date()));
             }
         }
-        // ToDo: update state on journal if test restarted
         setStartDate();
         startTimer();
     }
@@ -459,6 +478,52 @@ public class BiTestController {
         }).start();
     }
 
+    private void readMcuStatus() {
+        SshClient sshClient = new SshClient(isduhNetName, settings.getSshUser(),
+                settings.getSshPass(), controller);
+        String tmp = sshClient.getMcuMonitorStatus();
+        if (tmp.isEmpty()) {
+            System.out.println("Can't get MCU status");
+            return;
+        } else {
+            System.out.println(parseMcuStatus(tmp));
+        }
+    }
+
+    private HashMap<String, String> parseMcuStatus(String statusString) {
+        HashMap<String, String> res = new HashMap<>();
+        String onOffArray[] = new String[] {"Radar", "Camera", "Laser", "NIR", "Pump", "Fan",
+                "MCU Rst", "RDRHUB.Rst", "Acc.Tst", "MAN. O/R", "Eye Safety"};
+        String statusesArray[] = new String[] {"Wiper", "Door", "IRF", "UART2 Mux Channel", "BIT results"};
+        Pattern p;
+        Matcher m;
+//        for (String s: onOffArray) {
+//            p = Pattern.compile(String.format("(?<=%s\\s)(on|off)(?=\\s)", s));
+//            m = p.matcher(statusString);
+//            if (m.find()) {
+//                res.put(s, m.group(0));
+//            } else {
+//                res.put(s, "N/A");
+//            }
+//        }
+
+
+//        for (String s: statusesArray) {
+//            System.out.println(s);
+//            p = Pattern.compile("(?<=Door:(\\s*))(open|close|mounted|unmounted|0x[\\d*]|[\\d*])");
+//            m = p.matcher(statusString);
+//            if (m.find()) {
+//                res.put(s, m.group(0));
+//            } else {
+//                res.put(s, "N/A");
+//            }
+//        }
+//        p = Pattern.compile("(?<=Local\\s)(\\d+)(?=c)");
+//        m = p.matcher(statusString);
+//        res.put("Temp", m.find() ? m.group(0): "N/A");
+        return res;
+    }
+
     private void startLogMonitor() {
         logMonitor = new Thread(() -> {
             SshClient jssh = new SshClient(isduhNetName, settings.getSshUser(),
@@ -468,7 +533,6 @@ public class BiTestController {
 
             try {
                 jssh.executeCommands(commands);
-                jssh.close();
             } catch (CustomException ex) {
                 addToConsole("Can't execute command. Will retry after 15 seconds.");
                 for (int i = 0; i < 15; i++) {
@@ -488,11 +552,11 @@ public class BiTestController {
     }
 
     private void setStartDate() {
-        biTest.setStartDate(new Date());
+        btw.getBiTest().setStartDate(new Date());
         try {
-            service.saveOrUpdate(biTest);
+            service.saveOrUpdate(btw.getBiTest());
             setBiTestWorker(btw);
-            btw.setBiTest(biTest);
+            btw.clearMessagesAndLogs();
             journalController.refreshJournal();
         } catch (CustomException e) {
             LOGGER.error("setStartDate", e);
