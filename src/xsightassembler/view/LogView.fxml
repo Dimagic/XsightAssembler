@@ -57,6 +57,15 @@
                   <CheckBox fx:id="isIgnoreCase" mnemonicParsing="false" prefHeight="25.0" text="ignore case" />
                </children>
             </HBox>
+            <HBox alignment="CENTER" layoutX="127.0" layoutY="353.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0">
+               <children>
+                  <Label fx:id="testStatus" text="status">
+                     <font>
+                        <Font name="System Bold" size="30.0" />
+                     </font>
+                  </Label>
+               </children>
+            </HBox>
          </children>
       </AnchorPane>
     <AnchorPane minHeight="200.0" minWidth="250.0" prefHeight="398.0" prefWidth="250.0">

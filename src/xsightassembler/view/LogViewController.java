@@ -12,6 +12,7 @@ import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import org.apache.logging.log4j.LogManager;
@@ -29,6 +30,7 @@ import xsightassembler.utils.MsgBox;
 import xsightassembler.utils.Utils;
 
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
@@ -50,6 +52,9 @@ public class LogViewController {
     private final RadioButton correctBtn = new RadioButton("correct range");
     private final RadioButton incorrectBtn = new RadioButton("incorrect range");
     private HBox radioBox;
+    private long errorsCount;
+    private long ignoreCount;
+    private boolean ibitRes;
 
     @FXML
     private ListView<LogItem> listView;
@@ -75,6 +80,8 @@ public class LogViewController {
     private Button filterBtn;
     @FXML
     private CheckBox isIgnoreCase;
+    @FXML
+    private Label testStatus;
 
 
     @FXML
@@ -264,6 +271,7 @@ public class LogViewController {
     }
 
     private void fillLogTree() {
+        errorsCount = ignoreCount = 0;
         Set<String> errorsSet = new HashSet<>();
         FilteredList<LogItem> tmp = new FilteredList<>(listView.getItems());
         listView.getItems().forEach(i -> {
@@ -280,8 +288,16 @@ public class LogViewController {
                     s.getErrType().equalsIgnoreCase(val) &&
                     s.getDate().getTime() >= durationSlider.lowValueProperty().longValue() &&
                     s.getDate().getTime() <= durationSlider.highValueProperty().longValue());
-            errorCategory = new TreeItem<>(new LogItem(String.format("%s [%s of %s ignored]", val,
-                    tmp.stream().filter(LogItem::isIgnore).count(), tmp.size())));
+            if (val.equals("IBIT")) {
+                errorCategory = checkIbitCount(tmp);
+            } else {
+                long ignore = tmp.stream().filter(LogItem::isIgnore).count();
+                errorCategory = new TreeItem<>(new LogItem(String.format("%s [%s of %s ignored]", val,
+                        ignore, tmp.size())));
+                errorsCount += tmp.size();
+                ignoreCount += ignore;
+            }
+
             for (LogItem l : tmp) {
                 TreeItem<LogItem> t = new TreeItem<>(l);
                 errorCategory.getChildren().add(t);
@@ -290,7 +306,22 @@ public class LogViewController {
         }
         rootItem.getChildren().sort(Comparator.comparing(t -> t.getValue().getErrType()));
         logTree.setRoot(rootItem);
+        if ((errorsCount - ignoreCount) == 0 && ibitRes){
+            testStatus.setText("PASS");
+            testStatus.setTextFill(Color.GREEN);
+        } else {
+            testStatus.setText("FAIL");
+            testStatus.setTextFill(Color.RED);
+        }
+
         searchResultLbl.setText(String.format("Found %s items", itemList.size()));
+    }
+
+    private TreeItem<LogItem> checkIbitCount(FilteredList<LogItem> tmp) {
+        int foundIbit = tmp.size();
+        int needIbit = Utils.getBitNeedCount(sliderGetStartDate(), sliderGetStopDate());
+        ibitRes = Math.abs(foundIbit - needIbit) <= 1;
+        return new TreeItem<>(new LogItem(String.format("IBIT [%s of %s found]", foundIbit, needIbit)));
     }
 
     private void initSliderBox() {
@@ -332,6 +363,14 @@ public class LogViewController {
     private void setDuration() {
         long duration = durationSlider.highValueProperty().longValue() - durationSlider.lowValueProperty().longValue();
         durationLbl.setText(Utils.formatHMSM(duration));
+    }
+
+    private Date sliderGetStartDate() {
+        return new Date(durationSlider.lowValueProperty().longValue());
+    }
+
+    private Date sliderGetStopDate() {
+        return new Date(durationSlider.highValueProperty().longValue());
     }
 
     private void ifIncorrectRangePreset() {
@@ -399,6 +438,8 @@ public class LogViewController {
         fillLogTree();
         setDuration();
         ifIncorrectRangePreset();
+
+
     }
 
     private void setMinMaxDate() {
