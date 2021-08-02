@@ -41,9 +41,11 @@ public class BiTestWorker extends Task<Void> {
     private SshClient sshClient;
     private boolean isSerialsChecked = false;
     private boolean isISduFlag = false;
+    private boolean ibitCountError = false;
     private int onlineStatus;
     private IniUtils iniCmd;
-    private Map<String, Boolean> checkSerialsMap = new HashMap<>();
+    private IniUtils iniSettings;
+    private final Map<String, Boolean> checkSerialsMap = new HashMap<>();
 
     public BiTestWorker(Integer labNum, BiJournalController controller) {
         this.labNum = labNum;
@@ -51,6 +53,7 @@ public class BiTestWorker extends Task<Void> {
         this.settings = Utils.getSettings();
         try {
             this.iniCmd = new IniUtils("./strings.ini", "mcu_cmd");
+            this.iniSettings = new IniUtils("./strings.ini", "btw_settings");
         } catch (IOException e) {
             MsgBox.msgException(e);
         }
@@ -166,8 +169,6 @@ public class BiTestWorker extends Task<Void> {
         logAnalyzer.setOnSucceeded(event -> {
             logItems = logAnalyzer.getValue();
             if (logItems != null) {
-//                logItems.setPredicate(s -> s.getMessage().contains("UpperSensorSerialNumber"));
-//                System.out.println(logItems.size());
                 logItems.setPredicate(s -> s.getErrType() != null);
                 int errors = logItems.size();
                 int ignored = 0;
@@ -185,7 +186,11 @@ public class BiTestWorker extends Task<Void> {
                 }
                 pduResetList.forEach(l -> l.setIgnore(counterSet.size() == 1));
 
+                int currentBitCount = 0;
                 for (LogItem item : logItems) {
+                    if (item.getErrType().equals("IBIT")) {
+                        currentBitCount++;
+                    }
                     boolean ifIgnore = analyzerMap.get("ignore").stream().anyMatch(s ->
                             Pattern.compile(String.format("(.*?)%s(.*)", s)).matcher(item.getFullMsg()).matches());
                     boolean ifIbitIgnore = analyzerMap.get("ignore_if_ibit").stream().anyMatch(s ->
@@ -195,15 +200,17 @@ public class BiTestWorker extends Task<Void> {
                         ignored++;
                     }
                 }
-
+                int needBitCount = Utils.getBitNeedCount(getStartDate());
+                ibitCountError = Math.abs(currentBitCount - needBitCount) > 1;
                 if (errors == 0) {
                     updateLogStatus(String.format("Errors not found. Last check: %s",
                             Utils.getFormattedTime(new Date())));
+                } else if (ibitCountError) {
+                    updateLogStatus("IBIT not found or incorrect count");
                 } else {
                     updateLogStatus(String.format("%s of %s errors ignored. Last check: %s",
                             ignored, errors, Utils.getFormattedTime(new Date())));
                 }
-
             }
             logTimer = minutes;
             writeConsole("Complete log analyzer task");
@@ -268,17 +275,22 @@ public class BiTestWorker extends Task<Void> {
         return biTest;
     }
 
-
-    public void setBiTest(BiTest biTest) {
-        this.isSerialsChecked = false;
-        this.isISduFlag = false;
-        this.biTest = biTest;
-        if (biTest != null && queue.isEmpty()) {
-            queue.add(biTest);
-        }
+    public void clearMessagesAndLogs() {
         logItems = null;
         logMsg = null;
         conMsg = null;
+    }
+
+    public void setBiTest(BiTest biTest) {
+        if (biTest != null && queue.isEmpty()) {
+            queue.add(biTest);
+        }
+        this.sshClient = null;
+        this.checkSerialsMap.clear();
+        this.isSerialsChecked = false;
+        this.isISduFlag = false;
+        this.biTest = biTest;
+        clearMessagesAndLogs();
         updateCurrentMessage();
         controller.refreshJournal();
     }
@@ -399,12 +411,8 @@ public class BiTestWorker extends Task<Void> {
             writeConsole("Can't get system uptime");
             return false;
         }
-        if (uptime < 30000) {
-            writeConsole(String.format("Uptime is: %s. Waiting for 3 minutes", Utils.formatHMSM(uptime)));
-            return false;
-        }
-        writeConsole("Uptime is: " + Utils.formatHMSM(uptime));
-        checkISduFlag();
+        writeConsole("Checking serials. Uptime is: " + Utils.formatHMSM(uptime));
+        isISduFlag = checkISduFlag();
         return writeComExSN() && writeMac() && writeFlashSn() && writeUpperSn();
     }
 
@@ -414,12 +422,13 @@ public class BiTestWorker extends Task<Void> {
         }
         String flag = sendSshCommand("getIsduFlag");
         if (flag != null && !flag.isEmpty()) {
-            isISduFlag = flag.trim().equals("1");
-            writeConsole(String.format("%-10s: %s","ISduFlag", isISduFlag));
+            boolean res = flag.trim().equals("1");
+            checkSerialsMap.put("ISduFlag", res);
+            writeConsole(String.format("%-10s: %s", "ISduFlag", res));
+            return res;
         } else {
             writeConsole("ISduFlag not found");
         }
-        checkSerialsMap.put("ISduFlag", isISduFlag);
         return false;
     }
 
@@ -476,7 +485,7 @@ public class BiTestWorker extends Task<Void> {
                 MsgBox.msgWarning(e.getMessage());
             }
         }
-       return false;
+        return false;
     }
 
     private boolean writeMac() {
@@ -509,41 +518,71 @@ public class BiTestWorker extends Task<Void> {
         if (checkSerialsMap.get("UpperSn") != null && checkSerialsMap.get("UpperSn")) {
             return true;
         }
-        String sn = sendSshCommand("getUpperSensorSn");
+        String sn;
+        String snPrefix = iniSettings.getString("btwSnPrefix");
+        sn = sendSshCommand("getUpperSensorSn");
+        if (sn == null || sn.isEmpty()) {
+            sn = sendSshCommand("getUpperSensorSn1");
+        }
         if (sn != null && !sn.isEmpty()) {
             Pattern p = Pattern.compile("(?<=UpperUnitSerialNumber=)(\\d){10}$");
             Matcher m = p.matcher(sn);
             if (m.find()) {
-                sn = String.format("AM%s", m.group(0));
+                if (snPrefix == null) {
+                    snPrefix = "AM";
+                    MsgBox.msgInfo("SN prefix not found in strings.ini file.\n" +
+                            "Will use default prefix AM.");
+                }
+                sn = String.format("%s%s", snPrefix, m.group(0));
                 try {
+                    List<Object> forSave = new ArrayList<>();
                     Isduh currentIsduh = getIsduh();
-                    UpperSensorModuleService upperService = new UpperSensorModuleService();
                     IsduhService isduhService = new IsduhService();
+                    UpperSensorModuleService upperService = new UpperSensorModuleService();
                     UpperSensorModule upperSensorModule = upperService.findBySn(sn);
-                    if (upperSensorModule != null) {
-                        if (upperSensorModule.getModule().equals(currentIsduh.getUpperSensorModuleSn())) {
-                            writeConsole(String.format("%-10s: %s", "Upper SN", sn));
-                            return true;
-                        }
+                    // if new upper sensor
+                    if (upperSensorModule == null) {
+                        upperSensorModule = new UpperSensorModule();
+                        upperSensorModule.setModule(sn);
+                        upperSensorModule.setUser(getCurrentUser());
+                    } else {
+                        // if upper sensor placed in current system
                         Isduh tmpIsduh = isduhService.findByUpperSensorModule(sn);
                         if (tmpIsduh != null) {
-                            MsgBox.msgInfo(String.format("Upper sensor SN: %s\nalready use in system SN: %s\n" +
-                                    "Will replace to this system.", sn, tmpIsduh.getSn()));
-                            tmpIsduh.setUpperSensorModule(null);
-                            currentIsduh.setUpperSensorModule(upperSensorModule);
-                            List<Object> forSave = new ArrayList<>();
-                            forSave.add(tmpIsduh);
-                            forSave.add(currentIsduh);
-                            isduhService.saveOrUpdate(forSave);
-                            writeConsole(String.format("Upper sensor SN: %s moved from system %s to %s",
-                                    sn, tmpIsduh.getSn(), currentIsduh.getSn()));
-                            return true;
-                         }
+                            if (tmpIsduh.getId().equals(currentIsduh.getId())) {
+                                writeConsole(String.format("%-10s: %s", "Upper SN", sn));
+                                checkSerialsMap.put("UpperSn", true);
+                                return true;
+                            } else {
+                                // if in another system - add history
+                                MsgBox.msgInfo(String.format("Upper sensor SN: %s\nalready use in system SN: %s\n" +
+                                        "Will replace to this system.", sn, tmpIsduh.getSn()));
+                                History tmpHistory = getNewHistory("UpperSensor",
+                                        tmpIsduh.getUpperSensorModuleSn(), null);
+                                tmpIsduh.setUpperSensorModule(null);
+                                tmpIsduh.addHistory(tmpHistory);
+                                forSave.add(tmpHistory);
+                                forSave.add(tmpIsduh);
+                                writeConsole(String.format("Upper sensor SN: %s moved from system %s to %s",
+                                        sn, tmpIsduh.getSn(), currentIsduh.getSn()));
+                            }
+                        }
+
+                        // if in current system placed another sensor
+                        if (currentIsduh.getUpperSensorModule() != null &&
+                                !currentIsduh.getUpperSensorModuleSn().equals(upperSensorModule.getModule())) {
+                            History history = getNewHistory("UpperSensor",
+                                    currentIsduh.getUpperSensorModuleSn(), upperSensorModule.getModule());
+                            forSave.add(history);
+                        }
+                        currentIsduh.setUpperSensorModule(upperSensorModule);
+                        forSave.add(currentIsduh);
+                        isduhService.saveOrUpdate(forSave);
+                        writeConsole(String.format("%-10s: %s", "Upper SN", sn));
+                        checkSerialsMap.put("UpperSn", true);
+                        return true;
                     }
 
-                    upperSensorModule = new UpperSensorModule();
-                    upperSensorModule.setModule(sn);
-                    upperSensorModule.setUser(getCurrentUser());
                     upperService.saveOrUpdate(upperSensorModule);
                     currentIsduh.setUpperSensorModule(upperSensorModule);
                     isduhService.saveOrUpdate(currentIsduh);
@@ -554,9 +593,22 @@ public class BiTestWorker extends Task<Void> {
                     LOGGER.error("writeUpperSn", e);
                     MsgBox.msgWarning(e.getMessage());
                 }
+            } else {
+                writeConsole("Upper SN got string: " + sn);
             }
         }
         return false;
+    }
+
+    private History getNewHistory(String fieldName, String oldValue, String newValue) {
+        History history = new History();
+        history.setDate(new Date());
+        history.setUser(getCurrentUser());
+        history.setFieldChange(fieldName);
+        history.setOldValue(oldValue);
+        history.setNewValue(newValue);
+        history.setComment("Automatic changes");
+        return history;
     }
 
     private String sendSshCommand(String key) {
@@ -581,6 +633,7 @@ public class BiTestWorker extends Task<Void> {
         } catch (InterruptedException | ExecutionException e) {
             LOGGER.error("sendSshCommand", e);
             MsgBox.msgException(e);
+            return null;
         } finally {
             future.cancel(true);
         }
@@ -594,6 +647,10 @@ public class BiTestWorker extends Task<Void> {
 
     private User getCurrentUser() {
         return controller.getMainApp().getCurrentUser();
+    }
+
+    public boolean isIbitCountError() {
+        return ibitCountError;
     }
 
     private static class Ssh extends AsshClient {
