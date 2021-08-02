@@ -82,6 +82,8 @@ public class BiLogAnalyzer extends Task<FilteredList<LogItem>> {
             for (File f : filesList) {
                 try {
                     allLines.addAll(Files.readAllLines(Paths.get(f.getPath())));
+                    // delete temporary log files
+                    Files.deleteIfExists(Paths.get(f.getPath()));
                 } catch (MalformedInputException e) {
                     MsgBox.msgWarning("Incorrect log file found:\n" + f.getName());
                     return null;
@@ -163,21 +165,6 @@ public class BiLogAnalyzer extends Task<FilteredList<LogItem>> {
             LOGGER.error("Exception", e);
             MsgBox.msgError(e.getLocalizedMessage());
         }
-//        finally {
-//            try {
-//                Thread.sleep(10000);
-//                if (path != null) {
-//                    Files.deleteIfExists(Paths.get(path));
-//                }
-//                if (path2 != null) {
-//                    Files.deleteIfExists(Paths.get(path2));
-//                }
-//            } catch (IOException | InterruptedException e) {
-//                LOGGER.error("Exception", e);
-//                MsgBox.msgException(e);
-//            }
-//
-//        }
         return null;
     }
 
