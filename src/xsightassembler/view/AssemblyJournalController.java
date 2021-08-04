@@ -6,6 +6,7 @@ import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.fxml.FXML;
@@ -26,8 +27,10 @@ import org.apache.logging.log4j.Logger;
 import xsightassembler.MainApp;
 import xsightassembler.models.Isduh;
 import xsightassembler.models.MailAddress;
+import xsightassembler.models.Pallet;
 import xsightassembler.services.IsduhService;
 import xsightassembler.services.MailAddressService;
+import xsightassembler.services.PalletService;
 import xsightassembler.services.bi.BiNoteServise;
 import xsightassembler.services.bi.BiTestService;
 import xsightassembler.utils.*;
@@ -35,6 +38,7 @@ import xsightassembler.utils.*;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.*;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public class AssemblyJournalController {
@@ -46,6 +50,7 @@ public class AssemblyJournalController {
     private IsduhService service = new IsduhService();
     private FilteredList<Isduh> filteredList;
     private ObservableList<Isduh> allList;
+    private ObservableList<? extends Isduh> selectedItems;
 
     @FXML
     private AnchorPane mainPane;
@@ -69,6 +74,8 @@ public class AssemblyJournalController {
     private Button allInOneBtn;
     @FXML
     private Button palletBtn;
+    @FXML
+    private Button addToPalletBtn;
 
     private CheckBox sendMail;
     private ImageView exportImg;
@@ -91,6 +98,9 @@ public class AssemblyJournalController {
             event.consume();
         });
 
+        addToPalletBtn.setDisable(true);
+        addToPalletBtn.setTooltip(new Tooltip("Add to pallet"));
+
         TreeSet<String> statusSet = new TreeSet<>(Arrays.asList(Strings.statusesForAssemblyJournal));
         journalCombo.setItems(FXCollections.observableArrayList(statusSet));
         journalCombo.getSelectionModel().selectFirst();
@@ -104,7 +114,7 @@ public class AssemblyJournalController {
 
         tIsduh.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
 
-        tIsduh.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
+        tIsduh.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 
 
         tIsduh.setRowFactory(this::rowFactoryTab);
@@ -186,9 +196,17 @@ public class AssemblyJournalController {
             getFilteredByFieldList(newValue);
         });
 
+        tIsduh.getSelectionModel().getSelectedItems().addListener((ListChangeListener<Isduh>) changed -> {
+            selectedItems = changed.getList();
+            boolean isAvailable = selectedItems.stream().allMatch(c -> c.getPallet() == null
+                    && c.getAssemblyStatus() == 1);
+            addToPalletBtn.setDisable(!isAvailable);
+        });
+
         Utils.initDatePicker(dateFrom, dateTo);
         allInOneBtn.setOnAction(e -> mainApp.showAllInOneAssemblerView(null));
         palletBtn.setOnAction(e -> mainApp.showPalletView());
+        addToPalletBtn.setOnAction(e -> addItemsToPallet());
     }
 
     private TableRow<Isduh> rowFactoryTab(TableView<Isduh> view) {
@@ -384,6 +402,60 @@ public class AssemblyJournalController {
 
     private void showNewIsduhEditorView() {
         mainApp.showIsduhEditorView(null);
+    }
+
+    private void addItemsToPallet() {
+        try {
+            Set<String> types = new HashSet<>();
+            selectedItems.forEach(c -> types.add(c.getSystemType()));
+            if (types.size() > 1) {
+                if (!MsgBox.msgConfirm("Selected system of different types.\n" +
+                        "Are you sure want to continue?")) {
+                    return;
+                }
+            }
+            PalletService palletService = new PalletService();
+            List<Pallet> palletList = palletService.findAll().stream()
+                    .filter(c -> !c.isClosed()).collect(Collectors.toList());
+            if (palletList.size() == 0) {
+                MsgBox.msgInfo("Available pallets not found");
+                return;
+            }
+            List<String> palletNumbers = palletList.stream()
+                    .map(Pallet::getPalletNumber).collect(Collectors.toList());
+            String selectedPalletNumber = MsgBox.msgChoice("Choose pallet", "Pallet", palletNumbers);
+            if (selectedPalletNumber == null) {
+                return;
+            }
+            Pallet selectedPallet = palletList.stream()
+                    .filter(customer -> selectedPalletNumber.equals(customer.getPalletNumber()))
+                    .findAny()
+                    .orElse(null);
+            if (selectedPallet == null) {
+                return;
+            }
+            if (selectedPallet.getIsduhList().stream().anyMatch(c -> selectedItems.contains(c))) {
+                MsgBox.msgInfo("One or more system already placed in pallet #" + selectedPalletNumber);
+                return;
+            }
+            List<Object> forSave = new ArrayList<>();
+            for (Isduh isduh: selectedItems) {
+                selectedPallet.addIsduh(isduh);
+                forSave.add(isduh);
+            }
+            forSave.add(selectedPallet);
+
+            if (service.saveOrUpdate(forSave)) {
+                MsgBox.msgInfo(String.format("%s systems has been\n" +
+                        "successfully added to the pallet %s", selectedItems.size(), selectedPalletNumber));
+            } else {
+                MsgBox.msgWarning("Something went wrong");
+            }
+            tIsduh.refresh();
+        } catch (CustomException e) {
+            e.printStackTrace();
+        }
+
     }
 
     public void setStage(Stage stage) {
