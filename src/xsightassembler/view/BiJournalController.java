@@ -254,7 +254,7 @@ public class BiJournalController {
         // Log console init
         tRunningTests.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
             btw = newSelection;
-            if (newSelection.getBiTest() != null) {
+            if (btw != null && newSelection.getBiTest() != null) {
                 filteredList.setPredicate(c -> c.contains(newSelection.getBiNetName().getValue()));
             } else {
                 logList.removeIf(s -> s.contains(String.format("Lab#%s", newSelection.getLabNum())));
