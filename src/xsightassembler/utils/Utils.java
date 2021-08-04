@@ -54,10 +54,9 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 public class Utils {
-    private static Logger LOGGER = LogManager.getLogger(Utils.class.getName());
-    private static CameraModuleService cameraModuleService = new CameraModuleService();
-    private static BowlModuleService bowlModuleService = new BowlModuleService();
-    private static HashMap<String, String> stringMap = new HashMap<>();
+    private static final Logger LOGGER = LogManager.getLogger(Utils.class.getName());
+    private static final CameraModuleService cameraModuleService = new CameraModuleService();
+    private static final BowlModuleService bowlModuleService = new BowlModuleService();
 
     public final static long ONE_MILLISECOND = 1;
     public final static long MILLISECONDS_IN_A_SECOND = 1000;
