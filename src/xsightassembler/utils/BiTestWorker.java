@@ -7,7 +7,6 @@ import javafx.collections.transformation.FilteredList;
 import javafx.concurrent.Task;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import xsightassembler.MainApp;
 import xsightassembler.models.*;
 import xsightassembler.services.BowlModuleService;
 import xsightassembler.services.IsduhService;
@@ -28,11 +27,9 @@ public class BiTestWorker extends Task<Void> {
 
     private final BiJournalController controller;
     final BlockingQueue<BiTest> queue = new ArrayBlockingQueue<>(1);
-    private ExecutorService exService;
     private final Integer labNum;
 
     private BiTest biTest;
-    private MainApp mainApp;
     private String conMsg;
     private String logMsg;
     private long logTimer = 0;
@@ -48,7 +45,7 @@ public class BiTestWorker extends Task<Void> {
     private int onlineStatus;
     private IniUtils iniCmd;
     private IniUtils iniSettings;
-    private Set<String> checkSerialsSet = new HashSet<>();
+    private final Set<String> checkSerialsSet = new HashSet<>();
 
     public BiTestWorker(Integer labNum, BiJournalController controller) {
         this.labNum = labNum;
@@ -167,8 +164,9 @@ public class BiTestWorker extends Task<Void> {
         } else if (logTimer != 0 && (minutes % settings.getLogCheckPeriodInt()) != 0) {
             return;
         }
+        writeConsole("Uptime is: " + Utils.formatHMSM(getUptime()));
         writeConsole("Start log analyzer task");
-        exService = Executors.newSingleThreadExecutor();
+        ExecutorService exService = Executors.newSingleThreadExecutor();
         logAnalyzer = new BiLogAnalyzer(biTest, this);
         logAnalyzer.setOnSucceeded(event -> {
             logItems = logAnalyzer.getValue();
@@ -407,18 +405,7 @@ public class BiTestWorker extends Task<Void> {
     }
 
     private boolean checkSerials() {
-        // check uptime
-        String sUptime = sendSshCommand("getUptimeMs");
-        long uptime = 0;
-        if (sUptime != null && !sUptime.isEmpty()) {
-            uptime = Long.parseLong(sUptime);
-        } else {
-            writeConsole("Can't get system uptime");
-            return false;
-        }
-        isSamplerStarted = checkSampler(uptime);
-
-        writeConsole("Checking serials. Uptime is: " + Utils.formatHMSM(uptime));
+        isSamplerStarted = checkSampler();
         isISduFlag = checkISduFlag();
         return writeComExSN() && writeMac() && writeFlashSn() && writeUpperSn();
     }
@@ -607,9 +594,15 @@ public class BiTestWorker extends Task<Void> {
         return false;
     }
 
-    private boolean checkSampler(long uptime) {
-        // ToDo: checkSerialsMap
-        if (checkSerialsSet.contains("isSamplerStarted")) {
+    private boolean checkSampler() {
+        long uptime = getUptime();
+        if (uptime == 0) {
+            return false;
+        }
+        if (checkSerialsSet.contains("isSamplerStarted") ||
+                (biTest.getStartDate() != null &&
+                        (new Date().getTime() - biTest.getStartDate().getTime()) >
+                                TimeUnit.MINUTES.toMillis(settings.getLogCheckPeriodInt()))) {
             return true;
         }
         String samplerString = sendSshCommand("getSamplerStarted");
@@ -632,8 +625,6 @@ public class BiTestWorker extends Task<Void> {
                 }
             }
         }
-
-
         return false;
     }
 
@@ -678,6 +669,17 @@ public class BiTestWorker extends Task<Void> {
         return res.trim();
     }
 
+    private long getUptime() {
+        String sUptime = sendSshCommand("getUptimeMs");
+        long uptime = 0;
+        if (sUptime != null && !sUptime.isEmpty()) {
+            uptime = Long.parseLong(sUptime);
+        } else {
+            writeConsole("Can't get system uptime");
+        }
+        return uptime;
+    }
+
     public boolean isOnline() {
         return onlineStatus == 1;
     }
@@ -688,11 +690,5 @@ public class BiTestWorker extends Task<Void> {
 
     public boolean isIbitCountError() {
         return ibitCountError;
-    }
-
-    private static class Ssh extends AsshClient {
-        public Ssh(String hostname, String username, String password) {
-            super(hostname, username, password);
-        }
     }
 }
